@@ -1,0 +1,2 @@
+[console_scripts]
+cbatool = cbatool.__main__:main

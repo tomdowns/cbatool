@@ -1,0 +1,24 @@
+cbatool/
+│
+├── __init__.py                # Package initialization
+├── main.py                    # Main application entry point
+├── core/                      # Core functionality
+│   ├── __init__.py
+│   ├── data_loader.py         # DataLoader class
+│   ├── analyzer.py            # Analyzer class
+│   └── visualizer.py          # Visualizer class
+├── ui/                        # User interface components
+│   ├── __init__.py
+│   ├── app.py                 # Main application class
+│   ├── widgets.py             # Custom widgets
+│   └── dialogs.py             # Custom dialog boxes
+├── utils/                     # Utility functions
+│   ├── __init__.py
+│   ├── error_handling.py      # Error handling utilities
+│   ├── file_operations.py     # File operation utilities
+│   └── constants.py           # Constants and configurations
+└── tests/                     # Unit tests
+    ├── __init__.py
+    ├── test_data_loader.py    # Tests for DataLoader
+    ├── test_analyzer.py       # Tests for Analyzer
+    └── test_visualizer.py     # Tests for Visualizer

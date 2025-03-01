@@ -1,0 +1,14 @@
+Metadata-Version: 2.2
+Name: cbatool
+Version: 2.0.0
+Summary: Cable Burial Analysis Tool
+Author: Thomas Downs
+Requires-Python: >=3.7
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: plotly
+Requires-Dist: openpyxl
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
