@@ -19,6 +19,7 @@ from ..core.data_loader import DataLoader
 from ..core.analyzer import Analyzer
 from ..core.visualizer import Visualizer
 from ..utils.file_operations import select_file, open_file
+from ..utils.constants import COLORS
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -118,8 +119,13 @@ class CableAnalysisTool:
         # Add status bar at the bottom
         self._create_status_bar()
         
+       # Initialize theme based on dark mode setting
+        #self._initialize_theme()
+        
         # Set initial status
         self.set_status("Ready")
+        
+        
     
     def _apply_platform_styling(self):
         """Apply platform-specific styling to UI elements."""
@@ -453,21 +459,21 @@ class CableAnalysisTool:
     def _toggle_dark_mode(self):
         """Toggle between light and dark mode."""
         if self.dark_mode.get():
-            # Dark mode
-            self.console.config(bg="#2d2d2d", fg="#ffffff")
-            self.style.configure("TFrame", background="#3c3c3c")
-            self.style.configure("TLabel", background="#3c3c3c", foreground="#ffffff")
-            self.style.configure("TLabelframe", background="#3c3c3c", foreground="#ffffff")
-            self.style.configure("TLabelframe.Label", background="#3c3c3c", foreground="#ffffff")
+            # Dark mode - ONLY modify the console text widget
+            if hasattr(self, 'console'):
+                self.console.config(bg="#1e1e1e", fg="#e0e0e0")
             self.set_status("Dark mode enabled")
         else:
             # Light mode
-            self.console.config(bg="#f0f0f0", fg="#000000")
-            self.style.configure("TFrame", background="")
-            self.style.configure("TLabel", background="", foreground="")
-            self.style.configure("TLabelframe", background="", foreground="")
-            self.style.configure("TLabelframe.Label", background="", foreground="")
-            self.set_status("Light mode enabled")
+            if hasattr(self, 'console'):
+                self.console.config(bg="#f0f0f0", fg="#000000")
+            self.set_status("Light mode disabled")
+            
+    def _initialize_theme(self):
+        """Initialize theme based on current dark mode setting."""
+        # Apply the current theme based on dark mode setting
+        if hasattr(self, 'console'):
+            self._toggle_dark_mode()
     
     def _show_about(self):
         """Show about dialog."""
