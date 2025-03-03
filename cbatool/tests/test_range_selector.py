@@ -107,14 +107,22 @@ def test_variation_zones(range_selector, data):
 def test_recommended_ranges(range_selector, data):
     """Test the recommended range generation."""
     
-    # Generate recommended ranges
-    recommended_ranges = range_selector.generate_recommended_ranges()
+    # Generate recommended ranges with specific parameters
+    recommended_ranges = range_selector.generate_recommended_ranges(
+        max_ranges=5,
+        min_range_size=40,  # Smaller minimum size to work with our test data
+        max_range_size=200  # Smaller maximum size for our test dataset
+    )
     
     print(f"\nGenerated {len(recommended_ranges)} recommended ranges:")
     for i, range_info in enumerate(recommended_ranges):
         print(f"  Range {i+1}: {range_info['name']}")
+        print(f"    Index range: {range_info['start_index']} - {range_info['end_index']}")
         print(f"    KP range: {range_info['start_position']:.3f} - {range_info['end_position']:.3f}")
         print(f"    Description: {range_info['description']}")
+        if 'type' in range_info:
+            print(f"    Type: {range_info['type']}")
+        print()
     
     return recommended_ranges
 
@@ -140,28 +148,40 @@ def visualize_test_results(data, problem_sections, variation_zones, recommended_
             label='_Problem Section'  # Underscore prevents duplicate labels
         )
     
-    # Highlight variation zones
-    for zone in variation_zones:
-        plt.axvspan(
-            zone['start_position'], 
-            zone['end_position'], 
-            alpha=0.2, 
-            color='y',
-            label='_Variation Zone'
-        )
+    # Highlight variation zones (only the top ones for clarity)
+    if variation_zones:
+        top_variations = sorted(variation_zones, key=lambda x: x['std_dev'], reverse=True)[:3]
+        for zone in top_variations:
+            plt.axvspan(
+                zone['start_position'], 
+                zone['end_position'], 
+                alpha=0.2, 
+                color='y',
+                label='_Variation Zone'
+            )
     
-    # Add markers for the first 3 recommended ranges (skip full dataset)
-    range_colors = ['m', 'c', 'g']
-    for i, range_info in enumerate(recommended_ranges[1:4]):  # Skip full dataset range
+    # Add markers for the recommended ranges
+    range_colors = ['m', 'c', 'g', 'orange', 'purple']
+    for i, range_info in enumerate(recommended_ranges[1:]):  # Skip full dataset range
+        if i >= len(range_colors):
+            break
+            
         start = range_info['start_position']
         end = range_info['end_position']
+        
+        # Add a colored bar below the main plot for each range
+        y_pos = -0.2 - (i * 0.1)
         plt.plot(
             [start, end], 
-            [-0.2 * (i+1), -0.2 * (i+1)],
-            color=range_colors[i % len(range_colors)],
-            linewidth=3,
+            [y_pos, y_pos],
+            color=range_colors[i],
+            linewidth=4,
             label=f"Range: {range_info['name']}"
         )
+        
+        # Add vertical lines showing start/end of the range
+        plt.axvline(x=start, color=range_colors[i], linestyle=':', alpha=0.7)
+        plt.axvline(x=end, color=range_colors[i], linestyle=':', alpha=0.7)
     
     # Add labels and legend
     plt.xlabel('Cable Position (KP)')

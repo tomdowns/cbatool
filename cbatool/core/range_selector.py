@@ -268,18 +268,17 @@ class AdvancedRangeSelector:
             return []
         
         # Find problem sections and variation zones
-        problem_sections = self.find_problem_sections()
-        variation_zones = self.find_variation_zones()
+        # Use explicit parameters to ensure we detect sections
+        problem_sections = self.find_problem_sections(min_section_size=3, min_deficit=0.1)
+        variation_zones = self.find_variation_zones(window_size=20, threshold_std=0.3)
         
-        # Combine and sort by importance
-        all_sections = problem_sections + variation_zones
-        all_sections.sort(key=lambda x: x['importance'], reverse=True)
+        logger.info(f"Found {len(problem_sections)} problem sections and {len(variation_zones)} variation zones for range generation")
         
         # Get position values (use index if no position column)
         if self.position_column:
-            positions = self.data[self.position_column]
+            positions = self.data[self.position_column].values  # Convert to numpy array for consistent access
         else:
-            positions = self.data.index.astype(float)
+            positions = np.array(self.data.index)
         
         recommended_ranges = []
         
@@ -287,61 +286,133 @@ class AdvancedRangeSelector:
         full_range = {
             'start_index': 0,
             'end_index': len(self.data) - 1,
-            'start_position': positions.iloc[0],
-            'end_position': positions.iloc[-1],
+            'start_position': positions[0],
+            'end_position': positions[-1],
             'name': 'Full Dataset',
             'description': f'Complete view of all {len(self.data)} data points',
             'type': 'full'
         }
         recommended_ranges.append(full_range)
         
-        # Process top sections by importance
-        for section in all_sections[:max_ranges-1]:  # Leave room for full range
-            # Expand the section to have reasonable context
-            context_size = max(min_range_size, min(section['size'] * 3, max_range_size))
+        # Directly add ranges for the top problem sections
+        if problem_sections:
+            # Get the most severe deficit section
+            top_deficit = max(problem_sections, key=lambda x: x['max_deficit'])
             
-            # Find a balanced window around the section
-            half_context = context_size // 2
-            mid_index = (section['start_index'] + section['end_index']) // 2
+            # Calculate expanded context
+            context_size = min(100, len(self.data) // 10)  # 10% of data or 100 points, whichever is smaller
+            mid_index = (top_deficit['start_index'] + top_deficit['end_index']) // 2
             
-            start_idx = max(0, mid_index - half_context)
-            end_idx = min(len(self.data) - 1, mid_index + half_context)
+            start_idx = max(0, mid_index - context_size // 2)
+            end_idx = min(len(self.data) - 1, mid_index + context_size // 2)
             
-            # Adjust if we hit dataset boundaries
-            if start_idx == 0:
-                end_idx = min(len(self.data) - 1, start_idx + context_size)
-            if end_idx == len(self.data) - 1:
-                start_idx = max(0, end_idx - context_size)
-            
-            # Get position range
-            start_pos = positions.iloc[start_idx]
-            end_pos = positions.iloc[end_idx]
-            
-            # Create descriptive name and description
-            if section['type'] == 'deficit':
-                name = f"Depth Deficit ({section['max_deficit']:.2f}m)"
-                description = f"Section with burial depth {section['max_deficit']:.2f}m below target"
-            else:  # variation
-                name = f"Depth Variation (±{section['depth_range']:.2f}m)"
-                description = f"Section with significant depth variations (std: {section['std_dev']:.2f}m)"
-            
-            range_info = {
+            deficit_range = {
                 'start_index': start_idx,
                 'end_index': end_idx,
-                'start_position': start_pos,
-                'end_position': end_pos,
-                'name': name,
-                'description': description,
-                'type': section['type']
+                'start_position': positions[start_idx],
+                'end_position': positions[end_idx],
+                'name': f"Depth Deficit ({top_deficit['max_deficit']:.2f}m)",
+                'description': f"Section with burial depth {top_deficit['max_deficit']:.2f}m below target",
+                'type': 'deficit'
+            }
+            recommended_ranges.append(deficit_range)
+            logger.info(f"Added range for depth deficit: {deficit_range['start_position']:.3f}-{deficit_range['end_position']:.3f}")
+        
+        # Add range for the top variation zone (if any)
+        if variation_zones:
+            # Get the zone with highest variation
+            top_variation = max(variation_zones, key=lambda x: x['std_dev'])
+            
+            # Calculate expanded context (make sure the context size is reasonable)
+            context_size = min(100, len(self.data) // 10)  # 10% of data or 100 points, whichever is smaller
+            mid_index = (top_variation['start_index'] + top_variation['end_index']) // 2
+            
+            start_idx = max(0, mid_index - context_size // 2)
+            end_idx = min(len(self.data) - 1, mid_index + context_size // 2)
+            
+            variation_range = {
+                'start_index': start_idx,
+                'end_index': end_idx,
+                'start_position': positions[start_idx],
+                'end_position': positions[end_idx],
+                'name': f"Depth Variation (±{top_variation['depth_range']:.2f}m)",
+                'description': f"Section with significant depth variations (std: {top_variation['std_dev']:.2f}m)",
+                'type': 'variation'
             }
             
-            # Check if this range overlaps significantly with existing ranges
-            if not any(self._ranges_overlap(range_info, r, overlap_threshold=0.7) for r in recommended_ranges):
-                recommended_ranges.append(range_info)
+            # Only add if it doesn't overlap significantly with the deficit range
+            overlap = False
+            for existing_range in recommended_ranges[1:]:  # Skip the full dataset range
+                if self._ranges_overlap(variation_range, existing_range, 0.7):
+                    overlap = True
+                    logger.info(f"Skipping variation range due to overlap with existing range")
+                    break
+                    
+            if not overlap:
+                recommended_ranges.append(variation_range)
+                logger.info(f"Added range for depth variation: {variation_range['start_position']:.3f}-{variation_range['end_position']:.3f}")
+            elif len(variation_zones) > 1:
+                # Try the second highest variation if available and not overlapping
+                second_variation = variation_zones[1]
+                mid_index = (second_variation['start_index'] + second_variation['end_index']) // 2
+                
+                start_idx = max(0, mid_index - context_size // 2)
+                end_idx = min(len(self.data) - 1, mid_index + context_size // 2)
+                
+                second_var_range = {
+                    'start_index': start_idx,
+                    'end_index': end_idx,
+                    'start_position': positions[start_idx],
+                    'end_position': positions[end_idx],
+                    'name': f"Depth Variation (±{second_variation['depth_range']:.2f}m)",
+                    'description': f"Section with significant depth variations (std: {second_variation['std_dev']:.2f}m)",
+                    'type': 'variation'
+                }
+                
+                # Check again for overlap
+                if not any(self._ranges_overlap(second_var_range, r, 0.7) for r in recommended_ranges[1:]):
+                    recommended_ranges.append(second_var_range)
+                    logger.info(f"Added alternative range for depth variation: {second_var_range['start_position']:.3f}-{second_var_range['end_position']:.3f}")
+        
+        # Fill remaining slots with combined approach if we didn't get enough ranges
+        if len(recommended_ranges) < max_ranges and (problem_sections or variation_zones):
+            # Combine and sort all sections by importance
+            all_sections = problem_sections + variation_zones
+            all_sections.sort(key=lambda x: x['importance'], reverse=True)
             
-            # Stop if we have enough ranges
-            if len(recommended_ranges) >= max_ranges:
-                break
+            # Skip sections already covered in our top picks
+            for section in all_sections:
+                if len(recommended_ranges) >= max_ranges:
+                    break
+                    
+                # Calculate expanded context
+                context_size = min(100, len(self.data) // 10)
+                mid_index = (section['start_index'] + section['end_index']) // 2
+                
+                start_idx = max(0, mid_index - context_size // 2)
+                end_idx = min(len(self.data) - 1, mid_index + context_size // 2)
+                
+                if section['type'] == 'deficit':
+                    name = f"Depth Deficit ({section['max_deficit']:.2f}m)"
+                    description = f"Section with burial depth {section['max_deficit']:.2f}m below target"
+                else:
+                    name = f"Depth Variation (±{section['depth_range']:.2f}m)"
+                    description = f"Section with significant depth variations (std: {section['std_dev']:.2f}m)"
+                
+                range_info = {
+                    'start_index': start_idx,
+                    'end_index': end_idx,
+                    'start_position': positions[start_idx],
+                    'end_position': positions[end_idx],
+                    'name': name,
+                    'description': description,
+                    'type': section['type']
+                }
+                
+                # Check if this range overlaps with any existing range
+                if not any(self._ranges_overlap(range_info, r, 0.5) for r in recommended_ranges):
+                    recommended_ranges.append(range_info)
+                    logger.info(f"Added additional range: {range_info['name']}")
         
         self._ranges = recommended_ranges
         logger.info(f"Generated {len(recommended_ranges)} recommended viewing ranges")
