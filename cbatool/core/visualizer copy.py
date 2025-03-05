@@ -16,9 +16,6 @@ from typing import Optional, Dict, List, Tuple, Any, Union
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Import Advanced range Selection
-from .range_selector import AdvancedRangeSelector
-
 class Visualizer:
 	"""
 	Class for creating interactive visualizations of cable burial data analysis.
@@ -42,7 +39,6 @@ class Visualizer:
 		self.position_column = None
 		self.target_depth = 1.5  # Default target depth in meters
 		self.figure = None
-		self.range_selector = AdvancedRangeSelector()	
 		
 		# Try to import plotly
 		try:
@@ -73,14 +69,11 @@ class Visualizer:
 		if problem_sections is not None:
 			self.problem_sections = problem_sections
 			
-		# Configure the range selector with the same data
-		self.range_selector.set_data(data)
-			
 		logger.info(f"Data set for visualization: {len(data)} rows")
 		return True
-
+	
 	def set_columns(self, depth_column: str, kp_column: Optional[str] = None, 
-				position_column: Optional[str] = None) -> bool:
+				  position_column: Optional[str] = None) -> bool:
 		"""
 		Set the column names to use for visualization.
 		
@@ -104,13 +97,9 @@ class Visualizer:
 		self.depth_column = depth_column
 		logger.info(f"Using depth column for visualization: {depth_column}")
 		
-		# Determine position column for range selector (prefer KP if available)
-		range_selector_pos_column = None
-		
 		# Validate KP column if provided
 		if kp_column and kp_column in self.data.columns:
 			self.kp_column = kp_column
-			range_selector_pos_column = kp_column  # Use KP for range selector
 			logger.info(f"Using KP column for visualization: {kp_column}")
 		else:
 			self.kp_column = None
@@ -120,17 +109,11 @@ class Visualizer:
 		# Validate position column if provided
 		if position_column and position_column in self.data.columns:
 			self.position_column = position_column
-			# Use position column for range selector only if KP is not available
-			if range_selector_pos_column is None:
-				range_selector_pos_column = position_column
 			logger.info(f"Using position column for visualization: {position_column}")
 		else:
 			self.position_column = None
 			if position_column:  # Only log error if a column was specified but not found
 				logger.warning(f"Position column '{position_column}' not found in data")
-		
-		# Configure the range selector with the same columns
-		self.range_selector.set_columns(depth_column=depth_column, position_column=range_selector_pos_column)
 				
 		return True
 	
@@ -142,66 +125,16 @@ class Visualizer:
 			target_depth: Target depth in meters.
 		"""
 		self.target_depth = target_depth
-		self.range_selector.set_target_depth(target_depth)
 		logger.info(f"Target depth for visualization set to {target_depth}m")
-
-	def generate_recommended_ranges(self, max_ranges: int = 5) -> List[Dict]:
-		"""
-		Generate recommended viewing ranges for the loaded data.
-		
-		Args:
-			max_ranges: Maximum number of ranges to recommend.
-			
-		Returns:
-			List of dictionaries with recommended viewing ranges.
-		"""
-		if self.data is None or self.depth_column is None:
-			logger.error("Data or depth column not set for range generation")
-			return []
-		
-		ranges = self.range_selector.generate_recommended_ranges(max_ranges=max_ranges)
-		logger.info(f"Generated {len(ranges)} recommended viewing ranges")
-		return ranges
-
-	def apply_range_to_visualization(self, range_index: int = 0) -> bool:
-		"""
-		Apply a specific range to the current visualization.
-		
-		Args:
-			range_index: Index of the range to apply (from recommended ranges).
-			
-		Returns:
-			bool: True if range was applied successfully, False otherwise.
-		"""
-		if self.figure is None:
-			logger.error("No visualization created yet")
-			return False
-		
-		plotly_range = self.range_selector.get_range_for_plotly(range_index)
-		if not plotly_range:
-			logger.error(f"Invalid range index: {range_index}")
-			return False
-		
-		# Update the x-axis range
-		self.figure.update_layout(
-			xaxis=dict(
-				range=plotly_range['x']
-			)
-		)
-		
-		logger.info(f"Applied range: {plotly_range['name']}")
-		return True	
- 	
+	
 	def create_visualization(self, include_anomalies: bool = True, 
-						segmented: bool = False,
-						initial_range_index: int = 0) -> Any:
+						   segmented: bool = False) -> Any:
 		"""
 		Create an interactive visualization of burial depth with problem areas highlighted.
 		
 		Args:
 			include_anomalies: Whether to highlight anomalies on the chart.
 			segmented: Whether to create a segmented visualization for very large datasets.
-			initial_range_index: Index of the initial range to display (0 = full dataset).
 			
 		Returns:
 			Plotly figure object with the interactive visualization.
@@ -239,66 +172,34 @@ class Visualizer:
 		else:
 			fig = self._create_standard_visualization(x_values, hover_pos_label, include_anomalies)
 		
-		# Generate recommended ranges if not already generated
-		ranges = self.range_selector.generate_recommended_ranges()
-		
-		# Get the initial range to display
-		initial_range = None
-		if ranges and 0 <= initial_range_index < len(ranges):
-			initial_range = self.range_selector.get_range_for_plotly(initial_range_index)
-		
 		# Update common layout
-		layout_dict = {
-			'title': {
+		fig.update_layout(
+			title={
 				'text': 'Cable Burial Depth Analysis',
 				'y': 0.95,
 				'x': 0.5,
 				'xanchor': 'center',
 				'yanchor': 'top'
 			},
-			'xaxis_title': x_label,
-			'yaxis_title': 'Depth (m)',
-			'yaxis': dict(
+			xaxis_title=x_label,
+			yaxis_title='Depth (m)',
+			yaxis=dict(
 				autorange="reversed",  # Invert y-axis so deeper is lower
 				zeroline=True,
 				zerolinecolor='rgba(0,0,0,1)',
 				gridcolor='rgba(0,0,0,0.05)'
 			),
-			'xaxis': dict(
+			xaxis=dict(
 				zeroline=True,
 				zerolinecolor='rgba(0,0,0,0.2)',
-				gridcolor='rgba(0,0,0,0.1)',
-				# Add range slider
-				rangeslider=dict(visible=True)
+				gridcolor='rgba(0,0,0,0.1)'
 			),
-			'hovermode': 'closest',
-			'legend_title': 'Legend',
-			'plot_bgcolor': 'white',
-			'margin': dict(l=50, r=50, t=80, b=50),
-			'height': 600
-		}
-		
-		# Set initial range if available
-		if initial_range:
-			layout_dict['xaxis']['range'] = initial_range['x']
-			
-			# Add annotation for the selected range
-			layout_dict['annotations'] = [
-				dict(
-					text=f"Range: {initial_range['name']}",
-					align="left",
-					showarrow=False,
-					xref="paper",
-					yref="paper",
-					x=0.5,
-					y=1.05,
-					bgcolor="rgba(255,255,255,0.8)",
-					bordercolor="purple",
-					borderwidth=1
-				)
-			]
-		
-		fig.update_layout(**layout_dict)
+			hovermode='closest',
+			legend_title='Legend',
+			plot_bgcolor='white',
+			margin=dict(l=50, r=50, t=80, b=50),
+			height=600
+		)
 		
 		# Add useful annotations
 		if 'Is_Anomaly' in self.data.columns:
