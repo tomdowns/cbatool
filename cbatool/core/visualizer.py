@@ -512,6 +512,29 @@ class Visualizer:
 					)
 				)
 				added_severities.add(severity)
+	def create_position_visualization(self, data, kp_column, dcc_column=None):
+		"""
+		Create a visualization specifically for position data quality.
+		
+		Args:
+			data: DataFrame containing position analysis results.
+			kp_column: Name of the KP column.
+			dcc_column: Name of the DCC column (optional).
+			
+		Returns:
+			Plotly figure object with the position visualization.
+		"""
+		if not self.plotly_available:
+			logger.error("Plotly is not available - cannot create visualization")
+			return None
+			
+		# Import from the position visualizer module
+		from .position_visualizer import create_position_dashboard
+		
+		# Create the dashboard
+		fig = create_position_dashboard(data, kp_column, dcc_column)
+	
+		return fig
 			
 	def save_visualization(self, output_file):
 		"""
