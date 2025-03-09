@@ -19,6 +19,7 @@ from ..core.data_loader import DataLoader
 from ..core.analyzer import Analyzer
 from ..core.visualizer import Visualizer
 from ..utils.file_operations import select_file, open_file
+from ..core.position_analyzer import PositionAnalyzer
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -107,6 +108,7 @@ class CableAnalysisTool:
         self.data_loader = DataLoader()
         self.analyzer = Analyzer()
         self.visualizer = Visualizer()
+        self.position_analyzer = PositionAnalyzer()
         
         # Create variables for configuration
         self._create_variables()
@@ -256,6 +258,19 @@ class CableAnalysisTool:
             button_frame, 
             text="Run Analysis",
             command=self.run_analysis
+        ).pack(side="left", padx=(0, 10))
+        
+        # position analysis buttons
+        ttk.Button(
+            button_frame,
+            text="Run Position Analysis",
+            command=self.run_position_analysis
+        ).pack(side="left", padx=(0, 10))
+
+        ttk.Button(
+            button_frame,
+            text="View Results",
+            command=self._view_results
         ).pack(side="left", padx=(0, 10))
         
         ttk.Button(
@@ -639,6 +654,172 @@ class CableAnalysisTool:
             print(traceback.format_exc())
             messagebox.showerror("Analysis Error", f"An error occurred: {str(e)}")
             self.set_status("Analysis failed")
+            
+def run_position_analysis(self):
+    """Run position analysis on the loaded data."""
+    # Validate input parameters
+    if not self.file_path.get():
+        messagebox.showerror("Error", "Please select a file first.")
+        return
+    
+    # Get position-related columns
+    kp_column = None
+    dcc_column = None
+    lat_column = None
+    lon_column = None
+    
+    # Auto-detect position columns from loaded data
+    if self.data_loader.data is not None:
+        columns = list(self.data_loader.data.columns)
+        
+        # Look for KP column
+        kp_candidates = [col for col in columns if 'kp' in col.lower()]
+        if kp_candidates:
+            kp_column = kp_candidates[0]
+        
+        # Look for DCC column
+        dcc_candidates = [col for col in columns if 'dcc' in col.lower()]
+        if dcc_candidates:
+            dcc_column = dcc_candidates[0]
+        
+        # Look for latitude column
+        lat_candidates = [col for col in columns if 'lat' in col.lower()]
+        if lat_candidates:
+            lat_column = lat_candidates[0]
+        
+        # Look for longitude column
+        lon_candidates = [col for col in columns if 'lon' in col.lower()]
+        if lon_candidates:
+            lon_column = lon_candidates[0]
+    
+    # If no columns were found, ask the user to select them
+    if not kp_column:
+        messagebox.showerror("Error", "Could not detect KP column. Position analysis requires a KP column.")
+        return
+    
+    # Clear console
+    self.console.delete(1.0, "end")
+    
+    # Update status
+    self.set_status("Running position analysis...")
+    
+    # Redirect stdout to console
+    original_stdout = sys.stdout
+    sys.stdout = self.redirector
+    
+    # Run analysis in a separate thread to keep UI responsive
+    self._run_position_analysis_thread(kp_column, dcc_column, lat_column, lon_column)
+
+def _run_position_analysis_thread(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
+    """Run position analysis in a background thread."""
+    # Create and start thread
+    analysis_thread = threading.Thread(
+        target=self._position_analysis_worker,
+        args=(kp_column, dcc_column, lat_column, lon_column)
+    )
+    analysis_thread.daemon = True
+    analysis_thread.start()
+
+def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
+    """Worker function for background position analysis."""
+    try:
+        # 1. Load the data
+        print("Loading data...")
+        data = self.data_loader.load_data(sheet_name=self.sheet_name.get())
+        
+        if data is None or data.empty:
+            messagebox.showerror("Error", "Could not load data from the selected file.")
+            self.set_status("Analysis failed")
+            return
+        
+        # 2. Set up position analyzer
+        print("Setting up position analysis...")
+        self.position_analyzer.set_data(data)
+        self.position_analyzer.set_columns(
+            kp_column=kp_column,
+            dcc_column=dcc_column,
+            lat_column=lat_column,
+            lon_column=lon_column
+        )
+        
+        # 3. Run position analysis
+        print("Running position analysis...")
+        success = self.position_analyzer.analyze_position_data()
+        
+        if not success:
+            messagebox.showerror("Analysis Error", "Position analysis failed.")
+            self.set_status("Position analysis failed")
+            return
+        
+        # 4. Identify problem segments
+        print("Identifying position problem segments...")
+        segments = self.position_analyzer.identify_problem_segments()
+        
+        # 5. Create visualization
+        print("Creating position visualization...")
+        fig = self.visualizer.create_position_visualization(
+            data=self.position_analyzer.data,
+            kp_column=kp_column,
+            dcc_column=dcc_column
+        )
+        
+        if fig is None:
+            messagebox.showerror("Visualization Error", "Failed to create position visualization.")
+            self.set_status("Visualization failed")
+            return
+        
+        # 6. Save outputs
+        output_dir = self.output_dir.get()
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Visualization
+        viz_file = os.path.join(output_dir, "position_quality_analysis.html")
+        self.visualizer.figure = fig  # Set as current figure
+        self.visualizer.save_visualization(viz_file)
+        print(f"Interactive position visualization saved to: {viz_file}")
+        
+        # Position quality summary
+        summary = self.position_analyzer.get_analysis_summary()
+        print("\nPosition Analysis Summary:")
+        print(f"Total data points: {summary.get('total_points', 0)}")
+        print(f"KP range: {summary.get('kp_range', (0, 0))}")
+        print(f"KP length: {summary.get('kp_length', 0):.3f} km")
+        
+        if 'quality_counts' in summary:
+            quality_counts = summary['quality_counts']
+            for quality, count in quality_counts.items():
+                print(f"  {quality} quality: {count} points ({count/summary['total_points']*100:.1f}%)")
+        
+        if 'anomalies' in summary:
+            anomalies = summary['anomalies']
+            print("Position anomalies detected:")
+            print(f"  KP jumps: {anomalies.get('kp_jumps', 0)}")
+            print(f"  KP reversals: {anomalies.get('kp_reversals', 0)}")
+            print(f"  KP duplicates: {anomalies.get('kp_duplicates', 0)}")
+        
+        # 7. Save Excel reports
+        if hasattr(self.position_analyzer, 'analysis_results') and 'problem_segments' in self.position_analyzer.analysis_results:
+            problem_segments = self.position_analyzer.analysis_results['problem_segments']
+            if not problem_segments.empty:
+                segments_file = os.path.join(output_dir, "position_problem_segments_report.xlsx")
+                problem_segments.to_excel(segments_file, index=False)
+                print(f"Position problem segments report saved to: {segments_file}")
+        
+        # 8. Update UI
+        print("\nPosition analysis completed successfully.")
+        self.set_status("Position analysis complete")
+        
+        # Ask to view results
+        if messagebox.askyesno("Position Analysis Complete", 
+                             "Position analysis finished successfully. Open visualization?"):
+            self.visualizer.open_visualization(viz_file)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error during position analysis: {str(e)}")
+        print(traceback.format_exc())
+        messagebox.showerror("Position Analysis Error", f"An error occurred: {str(e)}")
+        self.set_status("Position analysis failed")
     
     def _view_results(self):
         """View analysis results."""
