@@ -512,6 +512,7 @@ class Visualizer:
 					)
 				)
 				added_severities.add(severity)
+    
 	def create_position_visualization(self, data, kp_column, dcc_column=None):
 		"""
 		Create a visualization specifically for position data quality.

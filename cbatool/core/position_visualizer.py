@@ -35,10 +35,13 @@ def create_kp_continuity_plot(fig, data, kp_column, row=1, col=1, show_anomalies
         logger.error("Plotly not available - visualization will be limited")
         return fig
     
+    # Create index array for x-axis
+    point_indices = list(range(len(data)))
+    
     # Add main KP line
     fig.add_trace(
         go.Scatter(
-            x=list(range(len(data))),
+            x=point_indices,
             y=data[kp_column],
             mode='lines',
             name='KP Progression',
@@ -50,12 +53,12 @@ def create_kp_continuity_plot(fig, data, kp_column, row=1, col=1, show_anomalies
     # Add anomalies if requested
     if show_anomalies and 'Is_KP_Jump' in data.columns:
         # Add KP jumps
-        jumps = data['Is_KP_Jump']
-        if jumps.any():
+        jump_indices = [i for i, jump in enumerate(data['Is_KP_Jump']) if jump]
+        if jump_indices:
             fig.add_trace(
                 go.Scatter(
-                    x=list(range(len(data)))[jumps],
-                    y=data.loc[jumps, kp_column],
+                    x=[point_indices[i] for i in jump_indices],
+                    y=data.iloc[jump_indices][kp_column],
                     mode='markers',
                     name='KP Jumps',
                     marker=dict(color='orange', size=8, symbol='triangle-up')
@@ -64,12 +67,12 @@ def create_kp_continuity_plot(fig, data, kp_column, row=1, col=1, show_anomalies
             )
         
         # Add KP reversals
-        reversals = data['Is_KP_Reversal']
-        if reversals.any():
+        reversal_indices = [i for i, rev in enumerate(data['Is_KP_Reversal']) if rev]
+        if reversal_indices:
             fig.add_trace(
                 go.Scatter(
-                    x=list(range(len(data)))[reversals],
-                    y=data.loc[reversals, kp_column],
+                    x=[point_indices[i] for i in reversal_indices],
+                    y=data.iloc[reversal_indices][kp_column],
                     mode='markers',
                     name='KP Reversals',
                     marker=dict(color='red', size=8, symbol='x')
