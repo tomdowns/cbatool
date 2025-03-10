@@ -261,15 +261,26 @@ class CableAnalysisTool:
 		self.kp_menu.grid(row=0, column=1, sticky="w", pady=2)
 		CreateToolTip(self.kp_menu, "Column containing KP (kilometer point) values")
 
-		ttk.Label(position_params, text="Position Column:").grid(row=1, column=0, sticky="w", pady=2)
+		ttk.Label(position_params, text="Data ID ref:").grid(row=1, column=0, sticky="w", pady=2)
 		self.position_menu = ttk.Combobox(position_params, textvariable=self.position_column, state="readonly", width=15)
 		self.position_menu.grid(row=1, column=1, sticky="w", pady=2)
-		CreateToolTip(self.position_menu, "Column containing position values")
+		CreateToolTip(self.position_menu, "Column containing data ID reference (optional)")
 
-		# WGS84 coordinate system note
+		#Latitude and Longitude column selection
+		ttk.Label(position_params, text="Latitude Column:").grid(row=2, column=0, sticky="w", pady=2)
+		self.lat_menu = ttk.Combobox(position_params, state="readonly", width=15)
+		self.lat_menu.grid(row=2, column=1, sticky="w", pady=2)
+		CreateToolTip(self.lat_menu, "Column containing latitude values")
+
+		ttk.Label(position_params, text="Longitude Column:").grid(row=3, column=0, sticky="w", pady=2)
+		self.lon_menu = ttk.Combobox(position_params, state="readonly", width=15)
+		self.lon_menu.grid(row=3, column=1, sticky="w", pady=2)
+		CreateToolTip(self.lon_menu, "Column containing longitude values")
+		
+  		# WGS84 coordinate system note
 		ttk.Label(position_params, text="Note: Position analysis uses WGS84 coordinate system", 
 				foreground="blue", font=("", 8, "italic")).grid(
-				row=2, column=0, columnspan=2, sticky="w", pady=(0, 5))
+				row=4, column=0, columnspan=2, sticky="w", pady=(0, 5))
 
 		# Add the parameter frames to the collapsible section
 		analysis_params.add(depth_frame)
@@ -400,6 +411,18 @@ class CableAnalysisTool:
 		if suggested_position:
 			self.position_column.set(suggested_position)
 		
+		# Update latitude column selector
+		lat_candidates = [col for col in columns if 'lat' in col.lower()]
+		self.lat_menu['values'] = [""] + columns
+		if lat_candidates:
+			self.lat_menu.set(lat_candidates[0])
+
+		# Update longitude column selector
+		lon_candidates = [col for col in columns if 'lon' in col.lower()]
+		self.lon_menu['values'] = [""] + columns
+		if lon_candidates:
+			self.lon_menu.set(lon_candidates[0])
+    
 		# Set default output directory to same as input file
 		if not self.output_dir.get():
 			self.output_dir.set(os.path.dirname(file_path))
