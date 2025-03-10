@@ -340,6 +340,240 @@ class SettingsDialog(tk.Toplevel):
         self.result = None
         self.destroy()
 
+class ConfigurationDialog(tk.Toplevel):
+    """
+    A dialog for managing configurations.
+    
+    Attributes:
+        result: Dictionary containing the selected configuration or action.
+    """
+    
+    def __init__(self, parent, action="load", current_config=None, **kwargs):
+        """
+        Initialize a ConfigurationDialog.
+        
+        Args:
+            parent: The parent window.
+            action: The action to perform ("load", "save", or "manage").
+            current_config: Dictionary with current configuration.
+            **kwargs: Additional keyword arguments for Toplevel.
+        """
+        super().__init__(parent, **kwargs)
+        
+        # Set dialog properties
+        if action == "load":
+            self.title("Load Configuration")
+        elif action == "save":
+            self.title("Save Configuration")
+        else:
+            self.title("Manage Configurations")
+            
+        self.resizable(False, False)
+        
+        # Initialize variables
+        self.action = action
+        self.current_config = current_config or {}
+        self.result = None
+        
+        # Create UI elements
+        self._create_widgets()
+        
+        # Make dialog modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Center on parent
+        window_width = 500
+        window_height = 400
+        parent_x = parent.winfo_rootx()
+        parent_y = parent.winfo_rooty()
+        parent_width = parent.winfo_width()
+        parent_height = parent.winfo_height()
+        x = parent_x + (parent_width - window_width) // 2
+        y = parent_y + (parent_height - window_height) // 2
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # Wait for dialog to close
+        parent.wait_window(self)
+    
+    def _create_widgets(self):
+        """Create and arrange all UI widgets for the dialog."""
+        # Import here to avoid circular imports
+        from ..utils.config_manager import get_available_configurations
+        
+        # Create main frame with padding
+        main_frame = ttk.Frame(self, padding="10 10 10 10")
+        main_frame.pack(fill="both", expand=True)
+        
+        if self.action == "load" or self.action == "manage":
+            # Create a list of available configurations
+            list_frame = ttk.LabelFrame(main_frame, text="Available Configurations", padding="5 5 5 5")
+            list_frame.pack(fill="both", expand=True, pady=5)
+            
+            # Create a treeview to display configurations
+            columns = ("name", "description")
+            self.config_tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
+            
+            # Define column headings
+            self.config_tree.heading("name", text="Name")
+            self.config_tree.heading("description", text="Description")
+            
+            # Define column widths
+            self.config_tree.column("name", width=150, anchor="w")
+            self.config_tree.column("description", width=300, anchor="w")
+            
+            # Add a scrollbar
+            scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.config_tree.yview)
+            self.config_tree.configure(yscrollcommand=scrollbar.set)
+            
+            # Pack the treeview and scrollbar
+            self.config_tree.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Populate the treeview with available configurations
+            self.configurations = get_available_configurations()
+            for i, config in enumerate(self.configurations):
+                self.config_tree.insert("", "end", iid=str(i), values=(config["name"], config["description"]))
+            
+            # Add double-click binding for the treeview
+            self.config_tree.bind("<Double-1>", self._on_double_click)
+            
+            if self.action == "manage":
+                # Add management buttons
+                manage_frame = ttk.Frame(main_frame)
+                manage_frame.pack(fill="x", pady=5)
+                
+                ttk.Button(manage_frame, text="Delete", command=self._on_delete).pack(side="left", padx=5)
+                ttk.Button(manage_frame, text="Rename", command=self._on_rename).pack(side="left", padx=5)
+        
+        if self.action == "save":
+            # Create input fields for saving a configuration
+            save_frame = ttk.LabelFrame(main_frame, text="Configuration Details", padding="5 5 5 5")
+            save_frame.pack(fill="x", pady=5)
+            
+            # Configuration name field
+            ttk.Label(save_frame, text="Name:").grid(row=0, column=0, sticky="w", pady=5)
+            self.config_name = tk.StringVar(value=self.current_config.get("configName", "My Configuration"))
+            ttk.Entry(save_frame, textvariable=self.config_name, width=40).grid(row=0, column=1, sticky="ew", pady=5)
+            
+            # Configuration description field
+            ttk.Label(save_frame, text="Description:").grid(row=1, column=0, sticky="w", pady=5)
+            self.config_desc = tk.StringVar(value=self.current_config.get("description", ""))
+            ttk.Entry(save_frame, textvariable=self.config_desc, width=40).grid(row=1, column=1, sticky="ew", pady=5)
+            
+            # Configure grid
+            save_frame.columnconfigure(1, weight=1)
+        
+        # Add buttons for actions
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill="x", pady=10)
+        
+        if self.action == "load":
+            ttk.Button(button_frame, text="Load", command=self._on_load).pack(side="right", padx=5)
+        elif self.action == "save":
+            ttk.Button(button_frame, text="Save", command=self._on_save).pack(side="right", padx=5)
+        
+        ttk.Button(button_frame, text="Cancel", command=self._on_cancel).pack(side="right", padx=5)
+    
+    def _on_double_click(self, event):
+        """Handle double-click on a configuration in the treeview."""
+        if self.action == "load":
+            self._on_load()
+    
+    def _on_load(self):
+        """Handle loading a configuration."""
+        selection = self.config_tree.selection()
+        if selection:
+            index = int(selection[0])
+            self.result = {"action": "load", "config_path": self.configurations[index]["path"]}
+            self.destroy()
+        else:
+            messagebox.showwarning("No Selection", "Please select a configuration to load.")
+    
+    def _on_save(self):
+        """Handle saving a configuration."""
+        name = self.config_name.get().strip()
+        if not name:
+            messagebox.showwarning("Invalid Name", "Please enter a configuration name.")
+            return
+        
+        # Prepare result
+        self.result = {
+            "action": "save",
+            "config_name": name,
+            "config_description": self.config_desc.get().strip()
+        }
+        self.destroy()
+    
+    def _on_delete(self):
+        """Handle deleting a configuration."""
+        selection = self.config_tree.selection()
+        if selection:
+            index = int(selection[0])
+            config_name = self.configurations[index]["name"]
+            
+            if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the configuration '{config_name}'?"):
+                import os
+                try:
+                    os.remove(self.configurations[index]["path"])
+                    messagebox.showinfo("Success", f"Configuration '{config_name}' deleted successfully.")
+                    # Refresh the tree view
+                    self.config_tree.delete(selection[0])
+                    # Update the configurations list
+                    del self.configurations[index]
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to delete configuration: {str(e)}")
+        else:
+            messagebox.showwarning("No Selection", "Please select a configuration to delete.")
+    
+    def _on_rename(self):
+        """Handle renaming a configuration."""
+        selection = self.config_tree.selection()
+        if selection:
+            index = int(selection[0])
+            config_name = self.configurations[index]["name"]
+            
+            new_name = simpledialog.askstring("Rename Configuration", 
+                                           "Enter new name:", 
+                                           initialvalue=config_name,
+                                           parent=self)
+            
+            if new_name and new_name.strip():
+                # Import here to avoid circular imports
+                from ..utils.config_manager import load_configuration, save_configuration
+                
+                try:
+                    # Load the existing configuration
+                    config = load_configuration(self.configurations[index]["path"])
+                    
+                    # Update the configuration name
+                    config["configName"] = new_name.strip()
+                    
+                    # Save with the new name
+                    save_configuration(config)
+                    
+                    # Delete the old file if the name changed
+                    if new_name.strip() != config_name:
+                        import os
+                        os.remove(self.configurations[index]["path"])
+                    
+                    messagebox.showinfo("Success", f"Configuration renamed to '{new_name}'.")
+                    
+                    # Update the treeview
+                    self.config_tree.item(selection[0], values=(new_name, self.configurations[index]["description"]))
+                    
+                    # Update the configurations list
+                    self.configurations[index]["name"] = new_name
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to rename configuration: {str(e)}")
+        else:
+            messagebox.showwarning("No Selection", "Please select a configuration to rename.")
+    
+    def _on_cancel(self):
+        """Handle cancel button click."""
+        self.result = {"action": "cancel"}
+        self.destroy()
 
 def get_test_data_parameters(parent):
     """

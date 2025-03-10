@@ -21,12 +21,19 @@ from ..core.analyzer import Analyzer
 from ..core.visualizer import Visualizer
 from ..utils.file_operations import select_file, open_file
 from ..core.position_analyzer import PositionAnalyzer
+from .dialogs import DataSelectionDialog, SettingsDialog, ConfigurationDialog
 from ..ui.widgets import(
 	CollapsibleFrame,
 	CreateToolTip,
 	ConsoleWidget,
 	ScrollableFrame,
 	StatusBar
+)
+from ..utils.config_manager import (
+	load_configuration,
+ 	save_configuration,
+	get_available_configurations,
+	DEFAULT_CONFIG
 )
 
 # Configure logging
@@ -120,6 +127,7 @@ class CableAnalysisTool:
 		
 		# Create variables for configuration
 		self._create_variables()
+		self.current_config = DEFAULT_CONFIG.copy()
 		
 		# Build the UI
 		self._create_menu()
@@ -172,7 +180,16 @@ class CableAnalysisTool:
 		file_menu.add_command(label="Exit", command=self.root.destroy)
 		self.menu_bar.add_cascade(label="File", menu=file_menu)
 		
-		# Analysis menu
+		# Configuration menu (new)
+		config_menu = Menu(self.menu_bar, tearoff=0)
+		config_menu.add_command(label="Load Configuration...", command=self._load_configuration)
+		config_menu.add_command(label="Save Configuration...", command=self._save_configuration)
+		config_menu.add_command(label="Manage Configurations...", command=self._manage_configurations)
+		config_menu.add_separator()
+		config_menu.add_command(label="Reset to Default", command=self._reset_to_default)
+		self.menu_bar.add_cascade(label="Configuration", menu=config_menu)		
+  
+  		# Analysis menu
 		analysis_menu = Menu(self.menu_bar, tearoff=0)
 		analysis_menu.add_command(label="Run Analysis", command=self.run_analysis)
 		analysis_menu.add_command(label="View Results", command=self._view_results)
@@ -351,6 +368,118 @@ class CableAnalysisTool:
 		output_dir = filedialog.askdirectory(title="Select Output Directory")
 		if output_dir:
 			self.output_dir.set(output_dir)
+
+	def _load_configuration(self):
+		"""Open dialog to load a configuration."""
+		dialog = ConfigurationDialog(self.root, action="load")
+		if dialog.result and dialog.result["action"] == "load":
+			config_path = dialog.result["config_path"]
+			try:
+				# Load the configuration
+				config = load_configuration(config_path)
+				
+				# Update the UI with the loaded configuration
+				self._apply_configuration(config)
+				
+				# Update current_config
+				self.current_config = config
+				
+				self.set_status(f"Configuration loaded: {config.get('configName', 'Unnamed')}")
+			except Exception as e:
+				messagebox.showerror("Error", f"Failed to load configuration: {str(e)}")
+				self.set_status("Error loading configuration")
+
+	def _save_configuration(self):
+		"""Open dialog to save the current configuration."""
+		# Build current configuration from UI settings
+		config = self._get_current_configuration()
+		
+		dialog = ConfigurationDialog(self.root, action="save", current_config=config)
+		if dialog.result and dialog.result["action"] == "save":
+			# Update configuration name and description
+			config["configName"] = dialog.result["config_name"]
+			config["description"] = dialog.result["config_description"]
+			
+			try:
+				# Save the configuration
+				save_configuration(config)
+				
+				# Update current_config
+				self.current_config = config
+				
+				self.set_status(f"Configuration saved: {config['configName']}")
+			except Exception as e:
+				messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
+				self.set_status("Error saving configuration")
+
+	def _manage_configurations(self):
+		"""Open dialog to manage configurations."""
+		dialog = ConfigurationDialog(self.root, action="manage")
+		# No specific action needed after dialog closes
+
+	def _reset_to_default(self):
+		"""Reset configuration to default values."""
+		if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset to default configuration?"):
+			# Reset the configuration
+			self._apply_configuration(DEFAULT_CONFIG)
+			
+			# Update current_config
+			self.current_config = DEFAULT_CONFIG.copy()
+			
+			self.set_status("Configuration reset to default")
+
+	def _get_current_configuration(self):
+		"""
+		Get the current configuration from UI settings.
+		
+		Returns:
+			dict: Current configuration dictionary.
+		"""
+		return {
+			"configName": self.current_config.get("configName", "My Configuration"),
+			"description": self.current_config.get("description", ""),
+			"version": "1.0",
+			"depthAnalysis": {
+				"targetDepth": self.target_depth.get(),
+				"maxDepth": self.max_depth.get(),
+				"minDepth": 0.0,
+				"spikeThreshold": 0.5,
+				"windowSize": 5,
+				"stdThreshold": 3.0,
+				"ignoreAnomalies": self.ignore_anomalies.get()
+			},
+			"positionAnalysis": {
+				"kpJumpThreshold": 0.1,
+				"kpReversalThreshold": 0.0001,
+				"dccThreshold": 5.0,
+				"coordinateSystem": "WGS84"
+			},
+			"visualization": {
+				"useSegmented": True,
+				"includeAnomalies": True
+			}
+		}
+
+	def _apply_configuration(self, config):
+		"""
+		Apply a configuration to the UI.
+		
+		Args:
+			config: Configuration dictionary to apply.
+		"""
+		# Apply depth analysis settings
+		depth_config = config.get("depthAnalysis", {})
+		self.target_depth.set(depth_config.get("targetDepth", 1.5))
+		self.max_depth.set(depth_config.get("maxDepth", 3.0))
+		self.ignore_anomalies.set(depth_config.get("ignoreAnomalies", False))
+		
+		# Apply position analysis settings if needed
+		# ...
+		
+		# Apply visualization settings if needed
+		# ...
+		
+		# Note: We don't update column selections here because they depend on the loaded data
 	
 	def _update_file_info(self, file_path):
 		"""
