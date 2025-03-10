@@ -187,7 +187,9 @@ class CableAnalysisTool:
 		config_menu.add_command(label="Manage Configurations...", command=self._manage_configurations)
 		config_menu.add_separator()
 		config_menu.add_command(label="Reset to Default", command=self._reset_to_default)
-		self.menu_bar.add_cascade(label="Configuration", menu=config_menu)		
+		config_menu.add_separator()
+		config_menu.add_command(label="Open Configurations Folder", command=self._show_config_directory)
+		self.menu_bar.add_cascade(label="Configuration", menu=config_menu)	
   
   		# Analysis menu
 		analysis_menu = Menu(self.menu_bar, tearoff=0)
@@ -427,6 +429,30 @@ class CableAnalysisTool:
 			self.current_config = DEFAULT_CONFIG.copy()
 			
 			self.set_status("Configuration reset to default")
+
+	def _show_config_directory(self):
+		"""Open the configurations directory in the system file explorer."""
+		from ..utils.config_manager import get_config_directory
+		import platform
+		import os
+		import subprocess
+		
+		config_dir = get_config_directory()
+		if os.path.exists(config_dir):
+			try:
+				# Use system-specific command to open folder
+				if platform.system() == "Windows":
+					os.startfile(config_dir)
+				elif platform.system() == "Darwin":  # macOS
+					subprocess.run(["open", config_dir])
+				else:  # Linux
+					subprocess.run(["xdg-open", config_dir])
+				
+				self.set_status(f"Opened configurations directory: {config_dir}")
+			except Exception as e:
+				messagebox.showerror("Error", f"Failed to open configurations directory: {str(e)}")
+		else:
+			messagebox.showerror("Error", "Configurations directory not found.")
 
 	def _get_current_configuration(self):
 		"""

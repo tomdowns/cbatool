@@ -50,9 +50,9 @@ def get_config_directory() -> str:
     Returns:
         str: Path to the configuration directory.
     """
-    # Use a directory in the user's home directory
+    # Use Documents folder for better user visibility
     home_dir = os.path.expanduser("~")
-    config_dir = os.path.join(home_dir, ".cbatool", CONFIG_DIR)
+    config_dir = os.path.join(home_dir, "Documents", "CBAtool", "Configurations")
     
     # Create directory if it doesn't exist
     if not os.path.exists(config_dir):
@@ -61,8 +61,8 @@ def get_config_directory() -> str:
             logger.info(f"Created configuration directory: {config_dir}")
         except Exception as e:
             logger.error(f"Failed to create configuration directory: {str(e)}")
-            # Fall back to current directory if home directory isn't accessible
-            config_dir = CONFIG_DIR
+            # Fall back to current directory if Documents isn't accessible
+            config_dir = "Configurations"
             if not os.path.exists(config_dir):
                 os.makedirs(config_dir)
     
