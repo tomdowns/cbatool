@@ -796,9 +796,14 @@ class CableAnalysisTool:
 			if 'Is_KP_Jump' in self.position_analyzer.data.columns or 'Is_KP_Reversal' in self.position_analyzer.data.columns:
 				# Filter the data to include only rows with position anomalies
 				anomaly_mask = (
+					# KP-related anomalies
 					self.position_analyzer.data.get('Is_KP_Jump', False) | 
 					self.position_analyzer.data.get('Is_KP_Reversal', False) | 
-					self.position_analyzer.data.get('Is_KP_Duplicate', False)
+					self.position_analyzer.data.get('Is_KP_Duplicate', False) |
+					# DCC-related anomalies
+					self.position_analyzer.data.get('Is_Significant_Deviation', False) |
+					# Low position quality (captures coordinate issues and combined problems)
+					(self.position_analyzer.data.get('Position_Quality', 'Good') != 'Good')
 				)
 				position_anomalies = self.position_analyzer.data[anomaly_mask]
 				
