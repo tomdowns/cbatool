@@ -579,6 +579,28 @@ class CableAnalysisTool:
 		suggested_position = self.data_loader.column_info.get('suggested_position_column', None)
 		if suggested_position:
 			self.position_column.set(suggested_position)
+   
+		# Update lat/lon selectors
+		self.lat_menu['values'] = [""] + columns
+		lat_candidates = [col for col in columns if 'lat' in col.lower()]
+		if lat_candidates:
+			self.lat_column.set(lat_candidates[0])
+
+		self.lon_menu['values'] = [""] + columns
+		lon_candidates = [col for col in columns if 'lon' in col.lower()]
+		if lon_candidates:
+			self.lon_column.set(lon_candidates[0])
+
+		# Update easting/northing selectors
+		self.easting_menu['values'] = [""] + columns
+		easting_candidates = [col for col in columns if 'east' in col.lower()]
+		if easting_candidates:
+			self.easting_column.set(easting_candidates[0])
+
+		self.northing_menu['values'] = [""] + columns
+		northing_candidates = [col for col in columns if 'north' in col.lower()]
+		if northing_candidates:
+			self.northing_column.set(northing_candidates[0])
 		
 		# Set default output directory to same as input file
 		if not self.output_dir.get():
