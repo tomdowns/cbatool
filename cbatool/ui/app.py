@@ -20,6 +20,7 @@ from ..core.data_loader import DataLoader
 from ..core.analyzer import Analyzer
 from ..core.visualizer import Visualizer
 from ..utils.file_operations import select_file, open_file
+#from ..utils.report_generator import ReportGenerator
 from ..core.position_analyzer import PositionAnalyzer
 from .dialogs import DataSelectionDialog, SettingsDialog, ConfigurationDialog
 from ..ui.widgets import(
@@ -197,6 +198,8 @@ class CableAnalysisTool:
   
   		# Analysis menu
 		analysis_menu = Menu(self.menu_bar, tearoff=0)
+		analysis_menu.add_separator()
+		analysis_menu.add_command(label="Generate Comprehensive Report", command=self._generate_comprehensive_report)
 		analysis_menu.add_command(label="Run Analysis", command=self.run_analysis)
 		analysis_menu.add_command(label="View Results", command=self._view_results)
 		self.menu_bar.add_cascade(label="Analysis", menu=analysis_menu)
@@ -327,6 +330,12 @@ class CableAnalysisTool:
 		button_frame.pack(fill="x", pady=10)
 
 		# Analysis buttons
+		ttk.Button(
+						button_frame,
+						text="Run Complete Analysis",
+						command=self.run_complete_analysis
+					).pack(side="left", padx=(0, 10))
+  
 		ttk.Button(
 			button_frame, 
 			text="Run Depth Analysis",
@@ -693,7 +702,7 @@ class CableAnalysisTool:
 			self.set_status("Error creating test data")
 		finally:
 			sys.stdout = original_stdout
-	
+		
 	def _show_about(self):
 		"""Show about dialog."""
 		messagebox.showinfo(
@@ -704,7 +713,7 @@ class CableAnalysisTool:
 			"Created: March 2025"
 		)
 	
-	def _show_documentation(self):     
+	def _show_documentation(self):
 		"""Show documentation."""
 		messagebox.showinfo(
 			"Documentation",
@@ -868,7 +877,7 @@ class CableAnalysisTool:
 				self.set_status("Analysis failed")
 				return
 			
-			# 4. Set up visualizer
+   			# 4. Set up visualizer
 			print("Creating visualization...")
 			self.visualizer.set_data(
 				data=self.analyzer.data,
@@ -892,7 +901,7 @@ class CableAnalysisTool:
 				self.set_status("Visualization failed")
 				return
 			
-			# 6. Save outputs
+			#6. Save outputs
 			output_dir = self.output_dir.get()
 			os.makedirs(output_dir, exist_ok=True)
 			
@@ -901,7 +910,18 @@ class CableAnalysisTool:
 			self.visualizer.save_visualization(viz_file)
 			print(f"Interactive visualization saved to: {viz_file}")
 			
-			# Analysis summary
+			# Create Comprehensive report
+			print("\nGenerating comprehensive report...")
+			report_generator = ReportGenerator(self.output_dir.get())
+			reports = report_generator.create_comprehensive_report(
+			self.analyzer.analysis_results,
+			viz_file  # Now this variable is properly defined
+			)
+		
+			print(f"Comprehensive Excel report saved to: {reports['excel_report']}")
+			print(f"PDF summary report saved to: {reports['pdf_report']}")
+   			
+	  		# Analysis summary
 			summary = self.analyzer.get_analysis_summary()
 			print("\nAnalysis Summary:")
 			print(f"Total data points: {summary.get('data_points', 0)}")
@@ -1025,8 +1045,177 @@ class CableAnalysisTool:
 		analysis_thread.daemon = True
 		analysis_thread.start()
 
-	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, 
-								lon_column=None, easting_column=None, northing_column=None):
+	def run_complete_analysis(self):
+		"""Run both depth and position analysis sequentially, then generate a comprehensive report."""
+		# First check if we have the necessary input
+		if not self.file_path.get():
+			messagebox.showerror("Error", "Please select a file first.")
+			return
+		
+		if not self.depth_column.get():
+			messagebox.showerror("Error", "Please select a depth column.")
+			return
+		
+		if not self.kp_column.get():
+			messagebox.showerror("Error", "Please select a KP column for position analysis.")
+			return
+		
+		# Clear console
+		self.console.clear()
+		
+		# Update status
+		self.set_status("Running complete analysis...")
+		
+		# Run as a separate thread to keep UI responsive
+		analysis_thread = threading.Thread(target=self._complete_analysis_worker)
+		analysis_thread.daemon = True
+		analysis_thread.start()
+
+	def _complete_analysis_worker(self):
+		"""Worker thread for running complete analysis."""
+		try:
+			# Redirect stdout to console
+			original_stdout = sys.stdout
+			sys.stdout = self.redirector
+
+			# 1. First run depth analysis
+			print("Starting depth analysis...")
+			
+			# Load data
+			data = self.data_loader.load_data(sheet_name=self.sheet_name.get())
+			if data is None or data.empty:
+				messagebox.showerror("Error", "Could not load data from the selected file.")
+				self.set_status("Analysis failed")
+				return
+			
+			# Set up analyzer
+			self.analyzer.set_data(data)
+			self.analyzer.set_columns(
+				depth_column=self.depth_column.get(),
+				kp_column=self.kp_column.get() if self.kp_column.get() else None,
+				position_column=self.position_column.get() if self.position_column.get() else None
+			)
+			self.analyzer.set_target_depth(self.target_depth.get())
+			
+			# Run depth analysis
+			depth_success = self.analyzer.analyze_data(
+				max_depth=self.max_depth.get(),
+				ignore_anomalies=self.ignore_anomalies.get()
+			)
+			
+			if not depth_success:
+				print("Depth analysis failed.")
+				self.set_status("Depth analysis failed")
+				return
+			
+			print("Depth analysis completed.")
+			
+			# 2. Run position analysis
+			print("\nStarting position analysis...")
+			
+			# Set up position analyzer
+			if not hasattr(self, 'position_analyzer'):
+				from ..core.position_analyzer import PositionAnalyzer
+				self.position_analyzer = PositionAnalyzer()
+			
+			self.position_analyzer.set_data(data)
+			self.position_analyzer.set_columns(
+				kp_column=self.kp_column.get(),
+				dcc_column=self.dcc_column.get() if hasattr(self, 'dcc_column') and self.dcc_column.get() else None,
+				lat_column=self.lat_column.get() if hasattr(self, 'lat_column') and self.lat_column.get() else None,
+				lon_column=self.lon_column.get() if hasattr(self, 'lon_column') and self.lon_column.get() else None
+			)
+			
+			# Run position analysis
+			position_success = self.position_analyzer.analyze_position_data()
+			
+			if not position_success:
+				print("Position analysis failed.")
+			else:
+				print("Position analysis completed.")
+				
+				# Identify position problem segments
+				segments = self.position_analyzer.identify_problem_segments()
+				if not segments.empty:
+					print(f"Identified {len(segments)} position problem segments.")
+				
+				# Save position analysis report
+				output_dir = self.output_dir.get()
+				os.makedirs(output_dir, exist_ok=True)
+				
+				pos_report_path = os.path.join(output_dir, "position_anomalies_report.xlsx")
+				if 'position_analysis' in self.position_analyzer.analysis_results:
+					self.position_analyzer.analysis_results['position_analysis'].to_excel(pos_report_path, index=False)
+					print(f"Position anomalies report saved to: {pos_report_path}")
+			
+			# 3. Generate comprehensive report
+			print("\nGenerating comprehensive report...")
+			
+			# Create directory if needed
+			output_dir = self.output_dir.get()
+			os.makedirs(output_dir, exist_ok=True)
+			
+			# Create visualization
+			viz_file = os.path.join(output_dir, "cable_burial_analysis.html")
+			
+			# Set up visualizer
+			self.visualizer.set_data(
+				data=self.analyzer.data,
+				problem_sections=self.analyzer.analysis_results.get('problem_sections', None)
+			)
+			self.visualizer.set_columns(
+				depth_column=self.depth_column.get(),
+				kp_column=self.kp_column.get() if self.kp_column.get() else None,
+				position_column=self.position_column.get() if self.position_column.get() else None
+			)
+			self.visualizer.set_target_depth(self.target_depth.get())
+			
+			# Create visualization
+			fig = self.visualizer.create_visualization(
+				include_anomalies=True,
+				segmented=(len(data) > 5000)
+			)
+			
+			if fig is not None:
+				self.visualizer.save_visualization(viz_file)
+				print(f"Interactive visualization saved to: {viz_file}")
+			
+			# Generate comprehensive report
+			from ..utils.report_generator import ReportGenerator
+			report_generator = ReportGenerator(output_dir)
+			
+			# Combine analysis results
+			combined_results = self.analyzer.analysis_results.copy()
+			
+			# Add position analysis results
+			if hasattr(self, 'position_analyzer') and hasattr(self.position_analyzer, 'analysis_results'):
+				for key, value in self.position_analyzer.analysis_results.items():
+					combined_results[f'position_{key}'] = value
+			
+			reports = report_generator.create_comprehensive_report(
+				combined_results,
+				viz_file if os.path.exists(viz_file) else None
+			)
+			
+			if 'excel_report' in reports and reports['excel_report']:
+				print(f"Comprehensive Excel report saved to: {reports['excel_report']}")
+			
+			if 'pdf_report' in reports and reports['pdf_report']:
+				print(f"PDF summary report saved to: {reports['pdf_report']}")
+			
+			print("\nComplete analysis finished successfully.")
+			self.set_status("Complete analysis finished")
+		
+		except Exception as e:
+			import traceback
+			print(f"Error during complete analysis: {str(e)}")
+			print(traceback.format_exc())
+			self.set_status("Analysis failed")
+		finally:
+			# Restore stdout
+			sys.stdout = original_stdout
+
+	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
 		"""Worker function for background position analysis."""
 		try:
 			# 1. Load the data
@@ -1224,6 +1413,62 @@ class CableAnalysisTool:
 		
 		ttk.Button(
 			button_frame, 
+   
+   
 			text="Cancel", 
 			command=result_dialog.destroy
 		).pack(side="right", expand=True, padx=5)
+  
+	def _generate_comprehensive_report(self):
+		"""Generate a comprehensive report from the latest analysis results."""
+		# Check if analysis has been run
+		if not hasattr(self.analyzer, 'analysis_results') or not self.analyzer.analysis_results:
+			messagebox.showinfo("No Results", "Please run analysis first.")
+			return
+		
+		# Get output directory
+		output_dir = self.output_dir.get()
+		if not os.path.exists(output_dir):
+			# Prompt for output directory
+			output_dir = filedialog.askdirectory(
+				title="Select Output Directory for Comprehensive Report"
+			)
+			if not output_dir:
+				return
+			self.output_dir.set(output_dir)
+		
+		# Create the report generator
+		report_generator = ReportGenerator(output_dir)
+		
+		# Get visualization path
+		viz_file = os.path.join(output_dir, "cable_burial_analysis.html")
+		
+		# Generate comprehensive report
+		self.set_status("Generating comprehensive report...")
+		try:
+			reports = report_generator.create_comprehensive_report(
+				self.analyzer.analysis_results,
+				viz_file if os.path.exists(viz_file) else None
+			)
+			
+			if reports['excel_report'] and reports['pdf_report']:
+				if messagebox.askyesno("Report Generated", 
+									"Comprehensive report generated successfully. Open report folder?"):
+					import subprocess
+					# Open folder based on platform
+					if platform.system() == "Windows":
+						os.startfile(output_dir)
+					elif platform.system() == "Darwin":  # macOS
+						subprocess.run(["open", output_dir])
+					else:  # Linux
+						subprocess.run(["xdg-open", output_dir])
+			else:
+				messagebox.showwarning("Report Generation", 
+									"Some reports could not be generated. Check the console for details.")
+		except Exception as e:
+			import traceback
+			print(f"Error generating report: {str(e)}")
+			print(traceback.format_exc())
+			messagebox.showerror("Report Error", f"Error generating report: {str(e)}")
+		
+		self.set_status("Ready")
