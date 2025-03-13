@@ -289,10 +289,31 @@ class CableAnalysisTool:
 		self.position_menu.grid(row=1, column=1, sticky="w", pady=2)
 		CreateToolTip(self.position_menu, "Column containing position values")
 
-		# WGS84 coordinate system note
+		ttk.Label(position_params, text="Latitude Column:").grid(row=3, column=0, sticky="w", pady=2)
+		self.lat_menu = ttk.Combobox(position_params, textvariable=self.lat_column, state="readonly", width=15)
+		self.lat_menu.grid(row=3, column=1, sticky="w", pady=2)
+		CreateToolTip(self.lat_menu, "Column containing latitude values")
+
+		ttk.Label(position_params, text="Longitude Column:").grid(row=4, column=0, sticky="w", pady=2)
+		self.lon_menu = ttk.Combobox(position_params, textvariable=self.lon_column, state="readonly", width=15)
+		self.lon_menu.grid(row=4, column=1, sticky="w", pady=2)
+		CreateToolTip(self.lon_menu, "Column containing longitude values")
+
+		# Easting/Northing fields
+		ttk.Label(position_params, text="Easting Column:").grid(row=5, column=0, sticky="w", pady=2)
+		self.easting_menu = ttk.Combobox(position_params, textvariable=self.easting_column, state="readonly", width=15)
+		self.easting_menu.grid(row=5, column=1, sticky="w", pady=2)
+		CreateToolTip(self.easting_menu, "Column containing easting values")
+
+		ttk.Label(position_params, text="Northing Column:").grid(row=6, column=0, sticky="w", pady=2)
+		self.northing_menu = ttk.Combobox(position_params, textvariable=self.northing_column, state="readonly", width=15)
+		self.northing_menu.grid(row=6, column=1, sticky="w", pady=2)
+		CreateToolTip(self.northing_menu, "Column containing northing values")
+  
+  		# WGS84 coordinate system note
 		ttk.Label(position_params, text="Note: Position analysis uses WGS84 coordinate system", 
 				foreground="blue", font=("", 8, "italic")).grid(
-				row=2, column=0, columnspan=2, sticky="w", pady=(0, 5))
+				row=7, column=0, columnspan=2, sticky="w", pady=(0, 5))
 
 		# Add the parameter frames to the collapsible section
 		analysis_params.add(depth_frame)
