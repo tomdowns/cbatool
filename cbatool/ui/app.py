@@ -17,11 +17,11 @@ from tkinter import (
 import tkinter as tk
 
 from ..core.data_loader import DataLoader
-from ..core.analyzer import Analyzer
+from ..core.depth_analyzer import DepthAnalyzer
+from ..core.position_analyzer import PositionAnalyzer
 from ..core.visualizer import Visualizer
 from ..utils.file_operations import select_file, open_file
-#from ..utils.report_generator import ReportGenerator
-from ..core.position_analyzer import PositionAnalyzer
+from ..utils.report_generator import ReportGenerator
 from .dialogs import DataSelectionDialog, SettingsDialog, ConfigurationDialog
 from ..ui.widgets import(
 	CollapsibleFrame,
@@ -122,9 +122,10 @@ class CableAnalysisTool:
 		
 		# Create core components
 		self.data_loader = DataLoader()
-		self.analyzer = Analyzer()
-		self.visualizer = Visualizer()
+		self.depth_analyzer = DepthAnalyzer()
 		self.position_analyzer = PositionAnalyzer()
+		self.visualizer = Visualizer()
+		
 		
 		# Create variables for configuration
 		self._create_variables()
@@ -857,17 +858,17 @@ class CableAnalysisTool:
 			
 			# 2. Set up analyzer
 			print("Setting up analysis...")
-			self.analyzer.set_data(data)
-			self.analyzer.set_columns(
+			self.depth_analyzer.set_data(data)
+			self.depth_analyzer.set_columns(
 				depth_column=self.depth_column.get(),
 				kp_column=self.kp_column.get() if self.kp_column.get() else None,
 				position_column=self.position_column.get() if self.position_column.get() else None
 			)
-			self.analyzer.set_target_depth(self.target_depth.get())
+			self.depth_analyzer.set_target_depth(self.target_depth.get())
 			
 			# 3. Run analysis
 			print("Running analysis...")
-			success = self.analyzer.analyze_data(
+			success = self.depth_analyzer.analyze_data(
 				max_depth=self.max_depth.get(),
 				ignore_anomalies=self.ignore_anomalies.get()
 			)
@@ -880,8 +881,8 @@ class CableAnalysisTool:
    			# 4. Set up visualizer
 			print("Creating visualization...")
 			self.visualizer.set_data(
-				data=self.analyzer.data,
-				problem_sections=self.analyzer.analysis_results.get('problem_sections', None)
+				data=self.depth_analyzer.data,
+				problem_sections=self.depth_analyzer.analysis_results.get('problem_sections', None)
 			)
 			self.visualizer.set_columns(
 				depth_column=self.depth_column.get(),
@@ -914,7 +915,7 @@ class CableAnalysisTool:
 			print("\nGenerating comprehensive report...")
 			report_generator = ReportGenerator(self.output_dir.get())
 			reports = report_generator.create_comprehensive_report(
-			self.analyzer.analysis_results,
+			self.depth_analyzer.analysis_results,
 			viz_file  # Now this variable is properly defined
 			)
 		
@@ -922,7 +923,7 @@ class CableAnalysisTool:
 			print(f"PDF summary report saved to: {reports['pdf_report']}")
    			
 	  		# Analysis summary
-			summary = self.analyzer.get_analysis_summary()
+			summary = self.depth_analyzer.get_analysis_summary()
 			print("\nAnalysis Summary:")
 			print(f"Total data points: {summary.get('data_points', 0)}")
 			print(f"Target depth: {summary.get('target_depth', 0.0)}m")
@@ -936,13 +937,13 @@ class CableAnalysisTool:
 				print(f"Anomalies detected: {summary.get('anomaly_count', 0)}")
 			
 			# 7. Save Excel reports
-			problem_sections = self.analyzer.analysis_results.get('problem_sections', None)
+			problem_sections = self.depth_analyzer.analysis_results.get('problem_sections', None)
 			if problem_sections is not None and not problem_sections.empty:
 				sections_file = os.path.join(output_dir, "problem_sections_report.xlsx")
 				problem_sections.to_excel(sections_file, index=False)
 				print(f"Problem sections report saved to: {sections_file}")
 			
-			anomalies = self.analyzer.analysis_results.get('anomalies', None)
+			anomalies = self.depth_analyzer.analysis_results.get('anomalies', None)
 			if anomalies is not None and not anomalies.empty:
 				anomaly_file = os.path.join(output_dir, "anomaly_report.xlsx")
 				anomalies.to_excel(anomaly_file, index=False)
@@ -1089,16 +1090,16 @@ class CableAnalysisTool:
 				return
 			
 			# Set up analyzer
-			self.analyzer.set_data(data)
-			self.analyzer.set_columns(
+			self.depth_analyzer.set_data(data)
+			self.depth_analyzer.set_columns(
 				depth_column=self.depth_column.get(),
 				kp_column=self.kp_column.get() if self.kp_column.get() else None,
 				position_column=self.position_column.get() if self.position_column.get() else None
 			)
-			self.analyzer.set_target_depth(self.target_depth.get())
+			self.depth_analyzer.set_target_depth(self.target_depth.get())
 			
 			# Run depth analysis
-			depth_success = self.analyzer.analyze_data(
+			depth_success = self.depth_analyzer.analyze_data(
 				max_depth=self.max_depth.get(),
 				ignore_anomalies=self.ignore_anomalies.get()
 			)
@@ -1127,7 +1128,7 @@ class CableAnalysisTool:
 			)
 			
 			# Run position analysis
-			position_success = self.position_analyzer.analyze_position_data()
+			position_success = self.position_analyzer.analyze_data()
 			
 			if not position_success:
 				print("Position analysis failed.")
@@ -1135,7 +1136,7 @@ class CableAnalysisTool:
 				print("Position analysis completed.")
 				
 				# Identify position problem segments
-				segments = self.position_analyzer.identify_problem_segments()
+				segments = self.position_analyzer.identify_problem_sections()
 				if not segments.empty:
 					print(f"Identified {len(segments)} position problem segments.")
 				
@@ -1160,8 +1161,8 @@ class CableAnalysisTool:
 			
 			# Set up visualizer
 			self.visualizer.set_data(
-				data=self.analyzer.data,
-				problem_sections=self.analyzer.analysis_results.get('problem_sections', None)
+				data=self.depth_analyzer.data,
+				problem_sections=self.depth_analyzer.analysis_results.get('problem_sections', None)
 			)
 			self.visualizer.set_columns(
 				depth_column=self.depth_column.get(),
@@ -1241,7 +1242,7 @@ class CableAnalysisTool:
 			
 			# 3. Run position analysis
 			print("Running position analysis...")
-			success = self.position_analyzer.analyze_position_data()
+			success = self.position_analyzer.analyze_data()
 			
 			if not success:
 				messagebox.showerror("Analysis Error", "Position analysis failed.")
@@ -1250,7 +1251,7 @@ class CableAnalysisTool:
 			
 			# 4. Identify problem segments
 			print("Identifying position problem segments...")
-			segments = self.position_analyzer.identify_problem_segments()
+			segments = self.position_analyzer.identify_problem_sections()
 			
 			# 5. Create visualization
 			print("Creating position visualization...")
@@ -1344,7 +1345,7 @@ class CableAnalysisTool:
 		View analysis results with support for both depth and position analyses.
 		"""
 		# Check if any analysis has been run
-		depth_results = hasattr(self.analyzer, 'analysis_results') and self.analyzer.analysis_results
+		depth_results = hasattr(self.depth_analyzer, 'analysis_results') and self.depth_analyzer.analysis_results
 		position_results = hasattr(self.position_analyzer, 'analysis_results') and self.position_analyzer.analysis_results
 
 		if not (depth_results or position_results):
@@ -1422,7 +1423,7 @@ class CableAnalysisTool:
 	def _generate_comprehensive_report(self):
 		"""Generate a comprehensive report from the latest analysis results."""
 		# Check if analysis has been run
-		if not hasattr(self.analyzer, 'analysis_results') or not self.analyzer.analysis_results:
+		if not hasattr(self.depth_analyzer, 'analysis_results') or not self.depth_analyzer.analysis_results:
 			messagebox.showinfo("No Results", "Please run analysis first.")
 			return
 		
@@ -1447,7 +1448,7 @@ class CableAnalysisTool:
 		self.set_status("Generating comprehensive report...")
 		try:
 			reports = report_generator.create_comprehensive_report(
-				self.analyzer.analysis_results,
+				self.depth_analyzer.analysis_results,
 				viz_file if os.path.exists(viz_file) else None
 			)
 			
