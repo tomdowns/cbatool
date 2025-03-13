@@ -38,6 +38,8 @@ class PositionAnalyzer:
         self.dcc_column = None
         self.lat_column = None
         self.lon_column = None
+        self.easting_column = None
+        self.northing_column = None
         self.analysis_results = {}
         
     def set_data(self, data: pd.DataFrame) -> bool:
@@ -59,7 +61,8 @@ class PositionAnalyzer:
         return True
     
     def set_columns(self, kp_column: str, dcc_column: Optional[str] = None, 
-                   lat_column: Optional[str] = None, lon_column: Optional[str] = None) -> bool:
+               lat_column: Optional[str] = None, lon_column: Optional[str] = None,
+               easting_column: Optional[str] = None, northing_column: Optional[str] = None) -> bool:
         """
         Set the column names to use for position analysis.
         
@@ -68,6 +71,8 @@ class PositionAnalyzer:
             dcc_column: Name of the column containing DCC values (optional).
             lat_column: Name of the column containing latitude values (optional).
             lon_column: Name of the column containing longitude values (optional).
+            easting_column: Name of the column containing easting values (optional).
+            northing_column: Name of the column containing northing values (optional).
             
         Returns:
             bool: True if columns were set successfully, False otherwise.
@@ -84,19 +89,49 @@ class PositionAnalyzer:
         self.kp_column = kp_column
         logger.info(f"Using KP column: {kp_column}")
         
-        # Set other columns if provided and valid
+        # Set DCC column if provided
         if dcc_column and dcc_column in self.data.columns:
             self.dcc_column = dcc_column
             logger.info(f"Using DCC column: {dcc_column}")
+        else:
+            self.dcc_column = None
+            if dcc_column:  # Only log warning if a column was specified but not found
+                logger.warning(f"DCC column '{dcc_column}' not found in data")
         
+        # Set Lat/Lon columns
         if lat_column and lat_column in self.data.columns:
             self.lat_column = lat_column
             logger.info(f"Using latitude column: {lat_column}")
+        else:
+            self.lat_column = None
+            if lat_column:  # Only log warning if a column was specified but not found
+                logger.warning(f"Latitude column '{lat_column}' not found in data")
         
         if lon_column and lon_column in self.data.columns:
             self.lon_column = lon_column
             logger.info(f"Using longitude column: {lon_column}")
-                
+        else:
+            self.lon_column = None
+            if lon_column:  # Only log warning if a column was specified but not found
+                logger.warning(f"Longitude column '{lon_column}' not found in data")
+        
+        # Set Easting/Northing columns
+        if easting_column and easting_column in self.data.columns:
+            self.easting_column = easting_column
+            logger.info(f"Using easting column: {easting_column}")
+        else:
+            self.easting_column = None
+            if easting_column:  # Only log warning if a column was specified but not found
+                logger.warning(f"Easting column '{easting_column}' not found in data")
+        
+        if northing_column and northing_column in self.data.columns:
+            self.northing_column = northing_column
+            logger.info(f"Using northing column: {northing_column}")
+        else:
+            self.northing_column = None
+            if northing_column:  # Only log warning if a column was specified but not found
+                logger.warning(f"Northing column '{northing_column}' not found in data")
+            
         return True
 
     def analyze_position_data(self, kp_jump_threshold: float = 0.1, 
@@ -127,8 +162,10 @@ class PositionAnalyzer:
         if self.dcc_column:
             result = self._analyze_cross_track_deviation(result)
         
-        # Analyze coordinate consistency if lat/lon columns are available
+        # Analyze coordinate consistency if coordinate columns are available
         if self.lat_column and self.lon_column:
+            result = self._analyze_coordinate_consistency(result)
+        elif self.easting_column and self.northing_column:
             result = self._analyze_coordinate_consistency(result)
         
         # Calculate overall position quality score
@@ -237,23 +274,39 @@ class PositionAnalyzer:
         Returns:
             DataFrame with added coordinate consistency analysis columns.
         """
-        if not (self.lat_column and self.lon_column):
-            return data
+        # Determine which coordinate system to use
+        if self.easting_column and self.northing_column:
+            logger.info("Analyzing coordinate consistency using Easting/Northing...")
             
-        logger.info("Analyzing coordinate consistency...")
-        
-        # Calculate distance between consecutive points (approx. using lat/lon differences)
-        # For simplicity, we're using a rough approximation here
-        data['Lat_Diff'] = data[self.lat_column].diff()
-        data['Lon_Diff'] = data[self.lon_column].diff()
-        
-        # Simple Euclidean distance (not actual distance but useful for relative comparison)
-        # In a real implementation, use the Haversine formula for actual distances
-        data['Coord_Change'] = np.sqrt(data['Lat_Diff']**2 + data['Lon_Diff']**2)
-        
-        # Expected coordinate change based on KP difference
-        # Rough approximation: 1 KP = 0.01 degrees (very approximate)
-        data['Expected_Coord_Change'] = data['KP_Diff'] * 0.01
+            # Calculate distance using Easting/Northing (simpler than lat/lon)
+            data['Easting_Diff'] = data[self.easting_column].diff()
+            data['Northing_Diff'] = data[self.northing_column].diff()
+            
+            # Simple Euclidean distance
+            data['Coord_Change'] = np.sqrt(data['Easting_Diff']**2 + data['Northing_Diff']**2)
+            
+            # Expected coordinate change based on KP difference (1 KP = 1000 meters)
+            data['Expected_Coord_Change'] = data['KP_Diff'] * 1000
+            
+        elif self.lat_column and self.lon_column:
+            logger.info("Analyzing coordinate consistency using Latitude/Longitude...")
+            
+            # Calculate using latitude/longitude
+            data['Lat_Diff'] = data[self.lat_column].diff()
+            data['Lon_Diff'] = data[self.lon_column].diff()
+            
+            # Simple Euclidean distance (not actual distance but useful for relative comparison)
+            # In a real implementation, use the Haversine formula for actual distances
+            data['Coord_Change'] = np.sqrt(data['Lat_Diff']**2 + data['Lon_Diff']**2)
+            
+            # Expected coordinate change based on KP difference
+            # Rough approximation: 1 KP = 0.01 degrees (very approximate)
+            data['Expected_Coord_Change'] = data['KP_Diff'] * 0.01
+        else:
+            logger.warning("No coordinate columns available for coordinate consistency analysis")
+            # Initialize with empty values so subsequent code still works
+            data['Coord_Change'] = 0
+            data['Expected_Coord_Change'] = 0
         
         # Detect coordinate inconsistencies
         data['Coord_Change_Ratio'] = np.where(
@@ -267,43 +320,6 @@ class PositionAnalyzer:
         
         # Fill NaNs with 1.0 (first point, etc.)
         data['Coord_Consistency_Score'] = data['Coord_Consistency_Score'].fillna(1.0)
-        
-        return data
-    
-    def _calculate_position_quality(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate overall position quality score.
-        
-        Args:
-            data: DataFrame with individual quality scores.
-            
-        Returns:
-            DataFrame with added overall position quality score.
-        """
-        logger.info("Calculating overall position quality score...")
-        
-        # Initialize position quality with KP continuity score
-        data['Position_Quality_Score'] = data['KP_Continuity_Score']
-        
-        # If available, factor in cross-track score
-        if 'Cross_Track_Score' in data.columns:
-            data['Position_Quality_Score'] = data['Position_Quality_Score'] * 0.6 + data['Cross_Track_Score'] * 0.4
-        
-        # If available, factor in coordinate consistency score
-        if 'Coord_Consistency_Score' in data.columns:
-            data['Position_Quality_Score'] = data['Position_Quality_Score'] * 0.7 + data['Coord_Consistency_Score'] * 0.3
-        
-        # Categorize position quality
-        data['Position_Quality'] = pd.cut(
-            data['Position_Quality_Score'], 
-            bins=[0, 0.3, 0.7, 1.0],
-            labels=['Poor', 'Suspect', 'Good']
-        )
-        
-        # Count by quality category
-        quality_counts = data['Position_Quality'].value_counts().to_dict()
-        for quality, count in quality_counts.items():
-            logger.info(f"  {quality} quality: {count} points ({count/len(data)*100:.1f}%)")
         
         return data
     
