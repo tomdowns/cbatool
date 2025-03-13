@@ -1128,7 +1128,7 @@ class CableAnalysisTool:
 			)
 			
 			# Run position analysis
-			position_success = self.position_analyzer.analyze_data()
+			position_success = self.position_analyzer.analyze_position_data()
 			
 			if not position_success:
 				print("Position analysis failed.")
@@ -1136,7 +1136,7 @@ class CableAnalysisTool:
 				print("Position analysis completed.")
 				
 				# Identify position problem segments
-				segments = self.position_analyzer.identify_problem_sections()
+				segments = self.position_analyzer.identify_problem_segments()
 				if not segments.empty:
 					print(f"Identified {len(segments)} position problem segments.")
 				
@@ -1186,7 +1186,7 @@ class CableAnalysisTool:
 			report_generator = ReportGenerator(output_dir)
 			
 			# Combine analysis results
-			combined_results = self.analyzer.analysis_results.copy()
+			combined_results = self.depth_analyzer.analysis_results.copy()
 			
 			# Add position analysis results
 			if hasattr(self, 'position_analyzer') and hasattr(self.position_analyzer, 'analysis_results'):
