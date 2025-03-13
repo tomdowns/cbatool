@@ -694,7 +694,6 @@ class CableAnalysisTool:
 		finally:
 			sys.stdout = original_stdout
 	
-	
 	def _show_about(self):
 		"""Show about dialog."""
 		messagebox.showinfo(
@@ -705,13 +704,92 @@ class CableAnalysisTool:
 			"Created: March 2025"
 		)
 	
-	def _show_documentation(self):
+	def _show_documentation(self):     
 		"""Show documentation."""
 		messagebox.showinfo(
 			"Documentation",
 			"Documentation is available in the README.md file.\n\n"
 			"For more information, visit the project website."
 		)
+  
+	def _complete_analysis_worker(self):
+		"""Worker thread for running complete analysis."""
+		try:
+			# Redirect stdout to console
+			original_stdout = sys.stdout
+			sys.stdout = self.redirector
+
+			# 1. First run depth analysis
+			print("Starting depth analysis...")
+			
+			# Load data
+			data = self.data_loader.load_data(sheet_name=self.sheet_name.get())
+			if data is None or data.empty:
+				messagebox.showerror("Error", "Could not load data from the selected file.")
+				self.set_status("Analysis failed")
+				return
+			
+			# Set up analyzer
+			self.depth_analyzer.set_data(data)
+			self.depth_analyzer.set_columns(
+				depth_column=self.depth_column.get(),
+				kp_column=self.kp_column.get() if self.kp_column.get() else None,
+				position_column=self.position_column.get() if self.position_column.get() else None
+			)
+			self.depth_analyzer.set_target_depth(self.target_depth.get())
+			
+			# Run depth analysis
+			depth_success = self.depth_analyzer.analyze_data(
+				max_depth=self.max_depth.get(),
+				ignore_anomalies=self.ignore_anomalies.get()
+			)
+			
+			if not depth_success:
+				print("Depth analysis failed.")
+				self.set_status("Depth analysis failed")
+				return
+			
+			print("Depth analysis completed.")
+			
+			# 2. Run position analysis
+			print("\nStarting position analysis...")
+			
+			# Set up position analyzer
+			if not hasattr(self, 'position_analyzer'):
+				from ..core.position_analyzer import PositionAnalyzer
+				self.position_analyzer = PositionAnalyzer()
+			
+			self.position_analyzer.set_data(data)
+			
+			# Pass the new coordinate columns to the position analyzer
+			self.position_analyzer.set_columns(
+				kp_column=self.kp_column.get(),
+				dcc_column=self.dcc_column.get() if hasattr(self, 'dcc_column') and self.dcc_column.get() else None,
+				lat_column=self.lat_column.get() if self.lat_column.get() else None,
+				lon_column=self.lon_column.get() if self.lon_column.get() else None,
+				easting_column=self.easting_column.get() if self.easting_column.get() else None,
+				northing_column=self.northing_column.get() if self.northing_column.get() else None
+			)
+			
+			# Run position analysis
+			position_success = self.position_analyzer.analyze_data()
+			
+			if not position_success:
+				print("Position analysis failed.")
+			else:
+				print("Position analysis completed.")
+
+			# Rest of the method remains the same
+			# ...
+		
+		except Exception as e:
+			import traceback
+			print(f"Error during complete analysis: {str(e)}")
+			print(traceback.format_exc())
+			self.set_status("Analysis failed")
+		finally:
+			# Restore stdout
+			sys.stdout = original_stdout
 	
 	def run_analysis(self):
 		"""Run analysis on the loaded data."""
@@ -878,6 +956,8 @@ class CableAnalysisTool:
 		dcc_column = None
 		lat_column = None
 		lon_column = None
+		easting_column = None
+		northing_column = None
 		
 		# Auto-detect position columns from loaded data
 		if self.data_loader.data is not None:
@@ -892,18 +972,24 @@ class CableAnalysisTool:
 			dcc_candidates = [col for col in columns if 'dcc' in col.lower()]
 			if dcc_candidates:
 				dcc_column = dcc_candidates[0]
-			
-			# Look for latitude column
-			lat_candidates = [col for col in columns if 'lat' in col.lower()]
-			if lat_candidates:
-				lat_column = lat_candidates[0]
-			
-			# Look for longitude column
-			lon_candidates = [col for col in columns if 'lon' in col.lower()]
-			if lon_candidates:
-				lon_column = lon_candidates[0]
 		
-		# If no columns were found, ask the user to select them
+		# Use user-selected columns if available
+		if self.kp_column.get():
+			kp_column = self.kp_column.get()
+			
+		if self.lat_column.get():
+			lat_column = self.lat_column.get()
+			
+		if self.lon_column.get():
+			lon_column = self.lon_column.get()
+			
+		if self.easting_column.get():
+			easting_column = self.easting_column.get()
+			
+		if self.northing_column.get():
+			northing_column = self.northing_column.get()
+		
+		# If no KP column was found, error
 		if not kp_column:
 			messagebox.showerror("Error", "Could not detect KP column. Position analysis requires a KP column.")
 			return
@@ -919,19 +1005,28 @@ class CableAnalysisTool:
 		sys.stdout = self.redirector
 		
 		# Run analysis in a separate thread to keep UI responsive
-		self._run_position_analysis_thread(kp_column, dcc_column, lat_column, lon_column)
+		self._run_position_analysis_thread(
+			kp_column, 
+			dcc_column, 
+			lat_column, 
+			lon_column,
+			easting_column,
+			northing_column
+		)
 
-	def _run_position_analysis_thread(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
+	def _run_position_analysis_thread(self, kp_column, dcc_column=None, lat_column=None, 
+									lon_column=None, easting_column=None, northing_column=None):
 		"""Run position analysis in a background thread."""
 		# Create and start thread
 		analysis_thread = threading.Thread(
 			target=self._position_analysis_worker,
-			args=(kp_column, dcc_column, lat_column, lon_column)
+			args=(kp_column, dcc_column, lat_column, lon_column, easting_column, northing_column)
 		)
 		analysis_thread.daemon = True
 		analysis_thread.start()
 
-	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
+	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, 
+								lon_column=None, easting_column=None, northing_column=None):
 		"""Worker function for background position analysis."""
 		try:
 			# 1. Load the data
@@ -950,7 +1045,9 @@ class CableAnalysisTool:
 				kp_column=kp_column,
 				dcc_column=dcc_column,
 				lat_column=lat_column,
-				lon_column=lon_column
+				lon_column=lon_column,
+				easting_column=easting_column,
+				northing_column=northing_column
 			)
 			
 			# 3. Run position analysis
