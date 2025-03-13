@@ -230,7 +230,7 @@ class ReportGenerator:
 			if self.report_config.get('analysis_type') == 'position' 
 			else analysis_results.get('position_analysis', {}))
   
-		problem_key = 'problem_sections' if 'problem_sections' in position_results else 'problem_segments'
+		problem_key = 'problem_sections' if 'problem_sections' in position_results else 'problem_sections'
 		problem_data = position_results.get(problem_key)
 		
 		# Handle problem sections data if it exists and is not empty
@@ -249,15 +249,15 @@ class ReportGenerator:
 			if 'anomalies' in position_summary:
 				standardized['summary']['position_anomalies'] = position_summary['anomalies']
 		
-		# Extract problem sections (might be called problem_sections or problem_segments)
+		# Extract problem sections (might be called problem_sections or problem_sections)
 		if 'problem_sections' in position_results:
 			sections = position_results['problem_sections']
 			if isinstance(sections, pd.DataFrame) and not sections.empty:
 				standardized['problem_sections']['position'] = sections
-		elif 'problem_segments' in position_results:
-			segments = position_results['problem_segments']
-			if isinstance(segments, pd.DataFrame) and not segments.empty:
-				standardized['problem_sections']['position'] = segments
+		elif 'problem_sections' in position_results:
+			sections = position_results['problem_sections']
+			if isinstance(sections, pd.DataFrame) and not sections.empty:
+				standardized['problem_sections']['position'] = sections
 		
 		# Extract position anomalies
 		# Position anomalies are often detected points rather than a separate DataFrame

@@ -782,7 +782,7 @@ class CableAnalysisTool:
 			)
 			
 			# Run position analysis
-			position_success = self.position_analyzer.analyze_data()
+			position_success = self.position_analyzer.analyze_position_data()
 			
 			if not position_success:
 				print("Position analysis failed.")
@@ -1135,10 +1135,10 @@ class CableAnalysisTool:
 			else:
 				print("Position analysis completed.")
 				
-				# Identify position problem segments
-				segments = self.position_analyzer.identify_problem_segments()
-				if not segments.empty:
-					print(f"Identified {len(segments)} position problem segments.")
+				# Identify position problem sections
+				sections = self.position_analyzer.identify_problem_sections()
+				if not sections.empty:
+					print(f"Identified {len(sections)} position problem sections.")
 				
 				# Save position analysis report
 				output_dir = self.output_dir.get()
@@ -1216,7 +1216,7 @@ class CableAnalysisTool:
 			# Restore stdout
 			sys.stdout = original_stdout
 
-	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None):
+	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None, easting_column=None, northing_column=None):
 		"""Worker function for background position analysis."""
 		try:
 			# 1. Load the data
@@ -1242,16 +1242,16 @@ class CableAnalysisTool:
 			
 			# 3. Run position analysis
 			print("Running position analysis...")
-			success = self.position_analyzer.analyze_data()
+			success = self.position_analyzer.analyze_position_data()
 			
 			if not success:
 				messagebox.showerror("Analysis Error", "Position analysis failed.")
 				self.set_status("Position analysis failed")
 				return
 			
-			# 4. Identify problem segments
-			print("Identifying position problem segments...")
-			segments = self.position_analyzer.identify_problem_sections()
+			# 4. Identify problem sections
+			print("Identifying position problem sections...")
+			sections = self.position_analyzer.identify_problem_sections()
 			
 			# 5. Create visualization
 			print("Creating position visualization...")
@@ -1317,12 +1317,12 @@ class CableAnalysisTool:
 					print(f"Position anomalies report saved to: {anomalies_file}")
 			
 			# 7. Save Excel reports
-			if hasattr(self.position_analyzer, 'analysis_results') and 'problem_segments' in self.position_analyzer.analysis_results:
-				problem_segments = self.position_analyzer.analysis_results['problem_segments']
-				if not problem_segments.empty:
-					segments_file = os.path.join(output_dir, "position_problem_segments_report.xlsx")
-					problem_segments.to_excel(segments_file, index=False)
-					print(f"Position problem segments report saved to: {segments_file}")
+			if hasattr(self.position_analyzer, 'analysis_results') and 'problem_sections' in self.position_analyzer.analysis_results:
+				problem_sections = self.position_analyzer.analysis_results['problem_sections']
+				if not problem_sections.empty:
+					sections_file = os.path.join(output_dir, "position_problem_sections_report.xlsx")
+					problem_sections.to_excel(sections_file, index=False)
+					print(f"Position problem sections report saved to: {sections_file}")
 			
 			# 8. Update UI
 			print("\nPosition analysis completed successfully.")

@@ -403,23 +403,23 @@ class PositionAnalyzer:
             
         return self.analysis_results['summary']
     
-    def identify_problem_segments(self, min_length: int = 5) -> pd.DataFrame:
+    def identify_problem_sections(self, min_length: int = 5) -> pd.DataFrame:
         """
-        Identify continuous segments with position quality issues.
+        Identify continuous sections with position quality issues.
         
         Args:
             min_length: Minimum number of consecutive points to consider as a segment.
             
         Returns:
-            DataFrame with problem segments information.
+            DataFrame with problem sections information.
         """
         if 'position_analysis' not in self.analysis_results:
-            logger.error("Position analysis must be run before identifying problem segments")
+            logger.error("Position analysis must be run before identifying problem sections")
             return pd.DataFrame()
             
         data = self.analysis_results['position_analysis']
         
-        # Find segments with poor quality
+        # Find sections with poor quality
         data['Is_Problem'] = data['Position_Quality'] == 'Poor'
         
         # Mark segment starts
@@ -431,7 +431,7 @@ class PositionAnalyzer:
         # Clear segment IDs for non-problem points
         data.loc[~data['Is_Problem'], 'Segment_ID'] = np.nan
         
-        segments = []
+        sections = []
         
         # Analyze each segment
         for segment_id, group in data[data['Is_Problem']].groupby('Segment_ID'):
@@ -456,19 +456,19 @@ class PositionAnalyzer:
                 segment['Max_DCC'] = group[self.dcc_column].abs().max()
                 segment['Avg_DCC'] = group[self.dcc_column].abs().mean()
             
-            segments.append(segment)
+            sections.append(segment)
         
-        # Create DataFrame from segments
-        if segments:
-            segments_df = pd.DataFrame(segments)
-            segments_df = segments_df.sort_values('Start_KP')
+        # Create DataFrame from sections
+        if sections:
+            sections_df = pd.DataFrame(sections)
+            sections_df = sections_df.sort_values('Start_KP')
             
             # Store in results
-            self.analysis_results['problem_segments'] = segments_df
+            self.analysis_results['problem_sections'] = sections_df
             
-            logger.info(f"Identified {len(segments_df)} position problem segments")
-            return segments_df
+            logger.info(f"Identified {len(sections_df)} position problem sections")
+            return sections_df
         else:
-            logger.info("No position problem segments identified")
-            self.analysis_results['problem_segments'] = pd.DataFrame()
+            logger.info("No position problem sections identified")
+            self.analysis_results['problem_sections'] = pd.DataFrame()
             return pd.DataFrame()
