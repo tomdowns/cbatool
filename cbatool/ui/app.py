@@ -163,6 +163,10 @@ class CableAnalysisTool:
 		self.depth_column = StringVar()
 		self.kp_column = StringVar()
 		self.position_column = StringVar()
+		self.lat_column = StringVar()
+		self.lon_column = StringVar()
+		self.easting_column = StringVar() 
+		self.northing_column = StringVar()
 		self.sheet_name = StringVar(value="0")  # Default to first sheet
 		self.ignore_anomalies = BooleanVar(value=False)
 	
