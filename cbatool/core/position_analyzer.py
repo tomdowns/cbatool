@@ -323,6 +323,43 @@ class PositionAnalyzer:
         
         return data
     
+    def _calculate_position_quality(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate overall position quality score.
+        
+        Args:
+            data: DataFrame with individual quality scores.
+            
+        Returns:
+            DataFrame with added overall position quality score.
+        """
+        logger.info("Calculating overall position quality score...")
+        
+        # Initialize position quality with KP continuity score
+        data['Position_Quality_Score'] = data['KP_Continuity_Score']
+        
+        # If available, factor in cross-track score
+        if 'Cross_Track_Score' in data.columns:
+            data['Position_Quality_Score'] = data['Position_Quality_Score'] * 0.6 + data['Cross_Track_Score'] * 0.4
+        
+        # If available, factor in coordinate consistency score
+        if 'Coord_Consistency_Score' in data.columns:
+            data['Position_Quality_Score'] = data['Position_Quality_Score'] * 0.7 + data['Coord_Consistency_Score'] * 0.3
+        
+        # Categorize position quality
+        data['Position_Quality'] = pd.cut(
+            data['Position_Quality_Score'], 
+            bins=[0, 0.3, 0.7, 1.0],
+            labels=['Poor', 'Suspect', 'Good']
+        )
+        
+        # Count by quality category
+        quality_counts = data['Position_Quality'].value_counts().to_dict()
+        for quality, count in quality_counts.items():
+            logger.info(f"  {quality} quality: {count} points ({count/len(data)*100:.1f}%)")
+        
+        return data
+    
     def _calculate_summary_statistics(self) -> None:
         """Calculate summary statistics for position analysis results."""
         if 'position_analysis' not in self.analysis_results:
