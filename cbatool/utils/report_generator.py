@@ -138,7 +138,7 @@ class ReportGenerator:
 		return report_paths
 	
 	def _standardize_analysis_results(self, analysis_results: Dict[str, Any], 
-									 analysis_type: str) -> Dict[str, Any]:
+                                 analysis_type: str) -> Dict[str, Any]:
 		"""
 		Standardize analysis results to a consistent format.
 		
@@ -164,17 +164,43 @@ class ReportGenerator:
 		# Extract common fields from analysis_results
 		if 'analysis_complete' in analysis_results:
 			standardized['analysis_complete'] = analysis_results['analysis_complete']
-			
-		# Process depth analysis results
-		if analysis_type in ['depth', 'combined']:
-			self._extract_depth_results(analysis_results, standardized)
-			
-		# Process position analysis results
-		if analysis_type in ['position', 'combined']:
-			self._extract_position_results(analysis_results, standardized)
-			
+		
+		# Check if we're dealing with an analyzer object or a results dictionary
+		if hasattr(analysis_results, 'get_analysis_summary'):
+			# It's an analyzer object
+			summary = analysis_results.get_analysis_summary()
+			if summary:
+				standardized['summary'] = summary
+				
+			# Try to get problem sections and anomalies from analyzer
+			if hasattr(analysis_results, 'analysis_results'):
+				analyzer_results = analysis_results.analysis_results
+				
+				# Extract problem sections
+				if 'problem_sections' in analyzer_results and isinstance(analyzer_results['problem_sections'], pd.DataFrame):
+					if not analyzer_results['problem_sections'].empty:
+						standardized['problem_sections']['depth'] = analyzer_results['problem_sections']
+				
+				# Extract anomalies
+				if 'anomalies' in analyzer_results and isinstance(analyzer_results['anomalies'], pd.DataFrame):
+					if not analyzer_results['anomalies'].empty:
+						standardized['anomalies']['depth'] = analyzer_results['anomalies']
+		else:
+			# Process depth analysis results
+			if analysis_type in ['depth', 'combined']:
+				self._extract_depth_results(analysis_results, standardized)
+				
+			# Process position analysis results
+			if analysis_type in ['position', 'combined']:
+				self._extract_position_results(analysis_results, standardized)
+		
 		# Generate recommendations based on analysis results
 		standardized['recommendations'] = self._generate_recommendations(standardized)
+		
+		# Log what we've extracted to help with debugging
+		logger.info(f"Standardized results summary keys: {list(standardized['summary'].keys())}")
+		logger.info(f"Problem sections: {list(standardized['problem_sections'].keys())}")
+		logger.info(f"Anomalies: {list(standardized['anomalies'].keys())}")
 		
 		return standardized
 	
@@ -903,195 +929,45 @@ class ReportGenerator:
 		Format the recommendations sheet with color coding and proper alignment.
 		
 		Args:
-			analysis_summary: Dictionary containing analysis summary data
-			visualization_path: Optional path to visualization image
-			output_filename: Name of the output PDF file
-		
-		Returns:
-			Path to the generated PDF report
+			worksheet: Excel worksheet
+			df: DataFrame containing the data
 		"""
-		try:
-			from reportlab.lib.pagesizes import letter
-			from reportlab.lib import colors
-			from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-			from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-			from reportlab.lib.units import inch
-		except ImportError:
-			logger.error("ReportLab is not installed. PDF generation requires ReportLab.")
-			return ""
+		# Check if 'severity' column exists
+		if 'severity' in df.columns:
+			severity_col_idx = list(df.columns).index('severity')
+			severity_col_letter = chr(65 + severity_col_idx) if severity_col_idx < 26 else chr(64 + severity_col_idx // 26) + chr(65 + severity_col_idx % 26)
+			
+			# Apply formatting to each cell in the severity column
+			for row_idx, severity in enumerate(df['severity'], start=2):  # Start from row 2 (after header)
+				cell = worksheet[f"{severity_col_letter}{row_idx}"]
+				
+				if severity == 'High':
+					cell.fill = PatternFill(start_color='FFCCCC', end_color='FFCCCC', fill_type='solid')
+				elif severity == 'Medium':
+					cell.fill = PatternFill(start_color='FFEECC', end_color='FFEECC', fill_type='solid')
+				elif severity == 'Low':
+					cell.fill = PatternFill(start_color='EEFFCC', end_color='EEFFCC', fill_type='solid')
+				
+		# Check if 'category' column exists
+		if 'category' in df.columns:
+			# Format category column
+			category_col_idx = list(df.columns).index('category')
+			category_col_letter = chr(65 + category_col_idx) if category_col_idx < 26 else chr(64 + category_col_idx // 26) + chr(65 + category_col_idx % 26)
+			
+			# Make category bold
+			for row_idx in range(2, len(df) + 2):  # Start from row 2 (after header)
+				cell = worksheet[f"{category_col_letter}{row_idx}"]
+				cell.font = Font(bold=True)
 		
-		# Full output path
-		output_path = os.path.join(self.output_directory, output_filename)
-		
-		try:
-			# Create PDF document
-			doc = SimpleDocTemplate(output_path, pagesize=letter)
-			styles = getSampleStyleSheet()
+		# Check if 'action' column exists
+		if 'action' in df.columns:
+			# Apply word wrap to action column
+			action_col_idx = list(df.columns).index('action')
+			action_col_letter = chr(65 + action_col_idx) if action_col_idx < 26 else chr(64 + action_col_idx // 26) + chr(65 + action_col_idx % 26)
 			
-			# Add custom styles
-			styles.add(ParagraphStyle(
-				name='SectionTitle',
-				parent=styles['Heading2'],
-				fontSize=14,
-				spaceAfter=10
-			))
-			
-			# Create document content
-			content = []
-			
-			# Title
-			content.append(Paragraph("Cable Burial Analysis Summary", styles['Title']))
-			content.append(Spacer(1, 0.2 * inch))
-			
-			# Date and time
-			content.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
-			content.append(Spacer(1, 0.2 * inch))
-			
-			# Analysis Overview Section
-			content.append(Paragraph("Analysis Overview", styles['SectionTitle']))
-			
-			# Extract key metrics
-			if analysis_summary:
-				# Create an overview table
-				overview_data = [['Metric', 'Value']]
-				
-				# Add key metrics
-				if 'data_points' in analysis_summary:
-					overview_data.append(['Total Data Points', str(analysis_summary['data_points'])])
-				if 'target_depth' in analysis_summary:
-					overview_data.append(['Target Depth', f"{analysis_summary['target_depth']} m"])
-				if 'compliance_percentage' in analysis_summary:
-					overview_data.append(['Compliance Percentage', f"{analysis_summary['compliance_percentage']:.2f}%"])
-				if 'problem_section_count' in analysis_summary:
-					overview_data.append(['Problem Sections', str(analysis_summary['problem_section_count'])])
-				if 'total_problem_length' in analysis_summary:
-					overview_data.append(['Total Problem Length', f"{analysis_summary['total_problem_length']:.1f} m"])
-				
-				# Create table
-				overview_table = Table(overview_data, colWidths=[2.5*inch, 3*inch])
-				overview_table.setStyle(TableStyle([
-					('BACKGROUND', (0, 0), (1, 0), colors.lightgrey),
-					('TEXTCOLOR', (0, 0), (1, 0), colors.black),
-					('ALIGN', (0, 0), (1, 0), 'CENTER'),
-					('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-					('BOTTOMPADDING', (0, 0), (1, 0), 12),
-					('GRID', (0, 0), (-1, -1), 1, colors.black),
-				]))
-				content.append(overview_table)
-			else:
-				content.append(Paragraph("No analysis summary data available.", styles['Normal']))
-			
-			content.append(Spacer(1, 0.3 * inch))
-			
-			# Problem Sections Section
-			content.append(Paragraph("Problem Sections Summary", styles['SectionTitle']))
-			
-			if 'problem_severity_counts' in analysis_summary:
-				severity_data = [['Severity', 'Count']]
-				
-				for severity, count in analysis_summary.get('problem_severity_counts', {}).items():
-					severity_data.append([severity, str(count)])
-				
-				severity_table = Table(severity_data, colWidths=[2.5*inch, 3*inch])
-				severity_table.setStyle(TableStyle([
-					('BACKGROUND', (0, 0), (1, 0), colors.lightgrey),
-					('TEXTCOLOR', (0, 0), (1, 0), colors.black),
-					('ALIGN', (0, 0), (1, 0), 'CENTER'),
-					('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-					('BOTTOMPADDING', (0, 0), (1, 0), 12),
-					('GRID', (0, 0), (-1, -1), 1, colors.black),
-					# Add row colors based on severity
-					('BACKGROUND', (0, 1), (1, 1), colors.pink if 'High' in severity_data[1] else colors.white),
-					('BACKGROUND', (0, 2), (1, 2), colors.lightpink if len(severity_data) > 2 and 'Medium' in severity_data[2] else colors.white),
-					('BACKGROUND', (0, 3), (1, 3), colors.lightgreen if len(severity_data) > 3 and 'Low' in severity_data[3] else colors.white),
-				]))
-				content.append(severity_table)
-			else:
-				content.append(Paragraph("No problem section severity data available.", styles['Normal']))
-			
-			content.append(Spacer(1, 0.3 * inch))
-			
-			# Anomalies Section
-			content.append(Paragraph("Anomalies Summary", styles['SectionTitle']))
-			
-			if 'anomaly_count' in analysis_summary:
-				content.append(Paragraph(f"Total anomalies detected: {analysis_summary['anomaly_count']}", styles['Normal']))
-				
-				if 'anomaly_percentage' in analysis_summary:
-					content.append(Paragraph(f"Percentage of data points with anomalies: {analysis_summary['anomaly_percentage']:.2f}%", styles['Normal']))
-				
-				if 'anomaly_severity_counts' in analysis_summary:
-					content.append(Spacer(1, 0.1 * inch))
-					content.append(Paragraph("Anomaly severity breakdown:", styles['Normal']))
-					
-					anomaly_data = [['Severity', 'Count']]
-					for severity, count in analysis_summary.get('anomaly_severity_counts', {}).items():
-						anomaly_data.append([severity, str(count)])
-					
-					anomaly_table = Table(anomaly_data, colWidths=[2.5*inch, 3*inch])
-					anomaly_table.setStyle(TableStyle([
-						('BACKGROUND', (0, 0), (1, 0), colors.lightgrey),
-						('TEXTCOLOR', (0, 0), (1, 0), colors.black),
-						('ALIGN', (0, 0), (1, 0), 'CENTER'),
-						('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-						('BOTTOMPADDING', (0, 0), (1, 0), 12),
-						('GRID', (0, 0), (-1, -1), 1, colors.black),
-					]))
-					content.append(anomaly_table)
-			else:
-				content.append(Paragraph("No anomaly data available.", styles['Normal']))
-			
-			content.append(Spacer(1, 0.3 * inch))
-			
-			# Visualization Section
-			if visualization_path and os.path.exists(visualization_path):
-				content.append(Paragraph("Visualization", styles['SectionTitle']))
-				
-				try:
-					# Add visualization image if it's an image file
-					if visualization_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-						img = Image(visualization_path, width=6*inch, height=4*inch)
-						content.append(img)
-					else:
-						content.append(Paragraph(f"Interactive visualization available at: {os.path.basename(visualization_path)}", styles['Normal']))
-				except Exception as e:
-					logger.error(f"Error adding visualization to PDF: {e}")
-					content.append(Paragraph(f"Visualization available at: {os.path.basename(visualization_path)}", styles['Normal']))
-			
-			# Recommendations Section
-			content.append(Paragraph("Recommendations", styles['SectionTitle']))
-			
-			if 'problem_section_count' in analysis_summary and analysis_summary['problem_section_count'] > 0:
-				content.append(Paragraph("Based on the analysis results, the following actions are recommended:", styles['Normal']))
-				content.append(Spacer(1, 0.1 * inch))
-				
-				# Generate recommendations based on problem sections
-				if 'problem_severity_counts' in analysis_summary:
-					if analysis_summary.get('problem_severity_counts', {}).get('High', 0) > 0:
-						content.append(Paragraph("• High severity sections require immediate remedial action", styles['Normal']))
-					
-					if analysis_summary.get('problem_severity_counts', {}).get('Medium', 0) > 0:
-						content.append(Paragraph("• Medium severity sections should be scheduled for inspection", styles['Normal']))
-					
-					if analysis_summary.get('problem_severity_counts', {}).get('Low', 0) > 0:
-						content.append(Paragraph("• Low severity sections should be monitored during routine maintenance", styles['Normal']))
-			else:
-				content.append(Paragraph("No recommendations needed. Cable burial meets requirements.", styles['Normal']))
-			
-			# Footer with report information
-			content.append(Spacer(1, 0.5 * inch))
-			content.append(Paragraph(f"Report generated by CBAtool v2.0 on {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Italic']))
-			
-			# Build the PDF
-			doc.build(content)
-			
-			logger.info(f"PDF summary report created: {output_path}")
-			self.report_paths['pdf'] = output_path
-			return output_path
-		
-		except Exception as e:
-			logger.error(f"Error generating PDF summary: {e}")
-			return ""
+			for row_idx in range(2, len(df) + 2):  # Start from row 2 (after header)
+				cell = worksheet[f"{action_col_letter}{row_idx}"]
+				cell.alignment = Alignment(wrap_text=True)
 	
 	def create_comprehensive_report(self, 
 								   analyzer_results: Dict[str, Any], 
