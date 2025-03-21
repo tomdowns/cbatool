@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "@modelcontextprotocol/server-memory",
+      "args": [
+        "--memory-path",
+        "/Users/tomdowns/Documents/Coding/Python/Trenching_QC/v2/memory.jsonl"
+      ]
+    }
+  }
+}
