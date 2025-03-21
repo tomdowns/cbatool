@@ -13,9 +13,8 @@
 10. [Troubleshooting Guide](#troubleshooting-guide)
 11. [Next Steps](#next-steps)
 12. [Project Status Summary](#project-status-summary)
-13. [Project Status Update](#project-status-update)
-14. [Git Log](#git-log)
-15. [References](#references)
+13. [Project Status Update](#project-status-updates)
+14. [References](#references)
 
 ---
 
@@ -71,6 +70,14 @@ CBAtool has made substantial progress in its architectural foundation, but a com
 - Created comparative metrics between datasets
 - Implemented visualization for temporal changes
 - Exportable comparison reports now available
+
+### Worker Functionality Extraction
+- Created BaseAnalysisWorker as a template method pattern   implementation
+- Developed DepthAnalysisWorker and PositionAnalysisWorker
+- Implemented standardized workflow for analysis processes
+- Added robust error handling and logging mechanisms
+- Supported multiple coordinate system inputs
+- Improved code modularity and maintainability
 
 ## Future Architectural Improvements
 1. **Factory Pattern for Analyzer Creation**
@@ -239,7 +246,7 @@ Remember, regular communication with team members about active feature branches 
 
 ## Next Steps
 1. 🔴 Begin incremental refactoring of `app.py` (Critical priority)
-   - Start with worker thread extraction
+   - continue with worker thread extraction
    - Implement modular design following SRP
 2. 🔴 Implement comprehensive testing framework (Critical priority)
 3. 🔴 Harmonize analyzer classes - method signatures and terminology (High priority)
@@ -305,47 +312,20 @@ Documentation and Refactoring Preparation phase completed. Significant progress 
 - ✅ **Roadmap Creation**: Established clear roadmap for incremental refactoring with identified modularization areas
 - ✅ **Git Preparation**: Created backup points in Git repository for safe refactoring
 
-#### Modularization Areas Identified:
-1. Worker thread extraction
-2. UI widget factory creation
-3. Configuration handling separation
-4. Event handler modularization
-5. Visualization separation
+### [2025-03-21]
+Commenced extraction of worker functions. Creation of BaseAnalysisWorker, DepthAnalysisWorker, PositionAnalysisWorker.
+Instigated Git commit message control through husky and `commitlint.config.js`
+Creation of new git feature branch feature/worker-management
+
+#### Key Accomplishments:
+- ✅ **Worker extraction**: created `BaseAnalysisWorker.py`, `DepthAnalysisWorker.py`, `PositionAnalysisWorker.py` 
+- ✅ **Git Commit control**: Ensuring standardised control of commmit messages for continued consistency
+- ✅ **Git Preparation**: Created backup points in Git repository for safe refactoring
 
 #### Current Focus:
-- Preparing for incremental refactoring of `app.py`
-- Starting with worker thread extraction as first milestone
+- Continued refactoring of `app.py`
 - Implementing modular design following Single Responsibility Principle
 - Maintaining proper Git workflow with feature branches
-
-## Git Log
-6ab7e8e - Tom Downs, 2025-03-14 : fixed an unterminated string literal (detected at line 5)
-ef1913a - Tom Downs, 2025-03-14 : fix(report-generator): Begin to resolve empty reports and formatting issues
-08d3737 - Tom Downs, 2025-03-14 : File for creation of test data for reporting functionality
-52ecd62 - Tom Downs, 2025-03-14 : Data for QC of reporting functionality. created by generate_test_data.py
-64917aa - Tom Downs, 2025-03-13 : fix: changed all references of "segment" to "section" Keeping consistency with all analyser classes
-9e9c34f - Tom Downs, 2025-03-13 : fix: Issue with _position_analysis_worker() Call. -TypeError: CableAnalysisTool._position_analysis_worker() takes from 2 to 5 positional arguments but 7 were given **Missing Easting and Northing**
-6cb32b8 - Tom Downs, 2025-03-13 : Fixing functionality. Reports not working
-7ad3f15 - Tom Downs, 2025-03-13 : Fixing functionality - Bringing report_generator.py back in to develop branch
-22af3b1 - Tom Downs, 2025-03-13 : Fixinging functionality - Bringing backward compatability file back to develop branch from standardized_analysis branch
-a10ca23 - Tom Downs, 2025-03-13 : Fixing functionality - base_analyser restored to develop
-3a1a9ce - Tom Downs, 2025-03-13 : Fixing functionality - analysis classes import
-e613020 - Tom Downs, 2025-03-13 : Fixing Functionality - standardised analyzer class imported in core/__init__
-2994bc2 - Tom Downs, 2025-03-13 : Removal of out dated file
-b007389 - Tom Downs, 2025-03-13 : Fixing functionality - restoring def _calculate_position_quality loss of multiple functioning within develop branch due to poor git version control and branch maintainence
-e98d929 - Tom Downs, 2025-03-13 : Fixing Functionality - restore analzer calls to new version depth_analyzer and position_analyzer. removing references to analyzer.
-6d85394 - Tom Downs, 2025-03-13 : "Fixing lost Functionality due to poor Git workflow management. - Complete Analysis UI button and related workers added back into Develop branch"
-67d4f08 - Tom Downs, 2025-03-13 : Complete position coordinate columns feature
-a1c919a - Tom Downs, 2025-03-13 : Restore depth_analyzer.py file
-de6d615 - Tom Downs, 2025-03-13 : feat(analysis): integrate coordinate columns with all analysis flows
-dfec55b - Tom Downs, 2025-03-13 : feat(analyzer): add support for both coordinate systems
-65fc11b - Tom Downs, 2025-03-13 : feat(ui): implement coordinate column auto-detection
-96af41e - Tom Downs, 2025-03-13 : feat(ui): add coordinate column selectors to position analysis
-2b562b5 - Tom Downs, 2025-03-13 : feat(ui): add coordinate column selectors to position analysis
-6666555 - Tom Downs, 2025-03-10 : Improve configuration accessibility by using Documents folder and adding UI access
-4dfbf09 - Tom Downs, 2025-03-10 : Implement configuration management system with save/load functionality
-5e441b4 - Tom Downs, 2025-03-10 : Add configuration manager module with save/load functionality
-566dab6 - Tom Downs, 2025-03-10 : Refinement of UI for viewing of results and starting the improvments of the UI
 
 ## References
 - **Git Branching Strategy.md**
