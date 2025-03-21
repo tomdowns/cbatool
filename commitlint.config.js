@@ -9,7 +9,7 @@ module.exports = {
     'scope-enum': [
       2,
       'always',
-      ['analyzer', 'visualizer', 'ui', 'utils', 'config', 'report', 'core', 'data', 'docs', 'test', 'worker',]
+      ['analyzer', 'visualizer', 'ui', 'utils', 'config', 'report', 'core', 'data', 'docs', 'testing', 'worker',]
     ],
     'scope-empty': [2, 'never'],
     'subject-case': [2, 'never', ['start-case', 'pascal-case']],
