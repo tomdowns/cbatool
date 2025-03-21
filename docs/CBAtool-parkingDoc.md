@@ -7,14 +7,12 @@
 04. [Key Issues and Fix Progress](#key-issues-and-fix-progress)
 05. [Recent Improvements](#recent-improvements)
 06. [Future Architectural Improvements](#future-architectural-improvements)
-07. [Git Workflow Strategy](#git-workflow-strategy)
-08. [Git Workflow Guide](#git-workflow-guide)
-09. [Report Formats](#report-formats)
-10. [Troubleshooting Guide](#troubleshooting-guide)
-11. [Next Steps](#next-steps)
-12. [Project Status Summary](#project-status-summary)
-13. [Project Status Update](#project-status-updates)
-14. [References](#references)
+07. [Report Formats](#report-formats)
+08. [Troubleshooting Guide](#troubleshooting-guide)
+09. [Next Steps](#next-steps)
+10. [Project Status Summary](#project-status-summary)
+11. [Project Status Update](#project-status-updates)
+12. [References](#references)
 
 ---
 
@@ -90,134 +88,8 @@ CBAtool has made substantial progress in its architectural foundation, but a com
    - Supports dynamic selection of analysis algorithms.
    - Estimated complexity: High  
 
-## Git Workflow Strategy
-### Branching Strategy
-
-- **Cricital misunderstanding of git functions and flow**: not merging functional features back into develop, I lost track of whats going on and have broken a lot
-
-- **Feature Branches**: Development occurs on separate branches (e.g., `feature/standardized-reporting`).
-- **Main Branch Stability**: Only tested and reviewed changes are merged.
-
-### Commit Message Guidelines
-Format:
-```bash
-[Component] Short description of change
-
-- Detailed change summary
-- Reference issue if applicable (e.g., #123)
-```
-Example:
-```bash
-[ReportGenerator] Fixed PDF export layout
-
-- Adjusted margins for better readability
-- Improved table formatting
-- Resolves #45
-```
-# Git Workflow Guide
-
-## Branch Structure
-The CBATool project uses a three-tier branching strategy:
-
-```
-main (stable, production-ready code)
-  ↑
-develop (integration branch)
-  ↑
-feature branches (one per feature)
-```
-
-## Workflow Process
-
-### 1. Starting Feature Development
-Always start by creating a feature branch from the latest develop branch:
-
-```bash
-git checkout develop         # Start from develop branch
-git pull                     # Make sure it's up to date
-git checkout -b feature/xyz  # Create new feature branch
-```
-
-### 2. Making Regular Commits
-Make small, focused commits with descriptive messages:
-
-```bash
-git add [changed files]
-git commit -m "feat: descriptive message about changes"
-```
-
-### 3. Staying Updated with Develop
-Regularly integrate changes from develop to avoid divergence:
-
-```bash
-git checkout develop
-git pull
-git checkout feature/xyz
-git merge develop           # Merge develop into your feature branch
-# Resolve any conflicts
-```
-
-### 4. Completing Feature Development
-Before merging, ensure your feature is complete and tested:
-
-```bash
-# Run tests to make sure everything works
-git push -u origin feature/xyz  # Push to remote repository
-```
-
-### 5. Merging Feature into Develop
-Use the no-fast-forward flag to preserve feature branch history:
-
-```bash
-git checkout develop
-git merge --no-ff feature/xyz   # --no-ff preserves feature branch history
-git push origin develop
-```
-
-### 6. Cleaning Up (Optional)
-Delete feature branches after successful merge:
-
-```bash
-git branch -d feature/xyz      # Delete local branch
-git push origin -d feature/xyz # Delete remote branch
-```
-
-## Best Practices
-
-1. **Never Develop Directly on Develop Branch**: Always create a feature branch.
-2. **Complete the Cycle**: Always finish one feature by merging it back to develop before starting the next.
-3. **Merge Completed Features Promptly**: Don't let feature branches live too long.
-4. **Update Feature Branches Regularly**: Merge develop into feature branches often.
-5. **Use Descriptive Branch Names**: Name branches in the format `feature/descriptive-name`.
-6. **Write Clear Commit Messages**: Use conventional commit format (e.g., "feat:", "fix:", "docs:").
-7. **Create Single-Purpose Branches**: Each branch should represent one logical feature or fix.
-8. **Test Before Merging**: Always verify functionality before merging to develop.
-
-## Common Git Commands Reference
-
-| Purpose | Command | Explanation |
-|---------|---------|-------------|
-| View status | `git status` | Shows changed files |
-| Switch branches | `git checkout branch-name` | Moves to another branch |
-| Create new branch | `git checkout -b branch-name` | Creates and switches to new branch |
-| Get latest changes | `git pull` | Updates current branch from remote |
-| Stage changes | `git add .` | Stages all changes |
-| Commit changes | `git commit -m "message"` | Commits staged changes |
-| Merge branches | `git merge branch-name` | Brings changes from branch-name into current branch |
-| Publish changes | `git push` | Sends commits to remote repository |
-| View branch graph | `git log --graph --oneline --all` | Shows branch structure graphically |
-| View differences | `git diff` | Shows uncommitted changes |
-
-## Handling Merge Conflicts
-
-When you encounter merge conflicts:
-
-1. **Understand the conflict**: Look for conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`)
-2. **Edit the files**: Manually resolve each conflict
-3. **Stage the resolutions**: `git add [resolved files]`
-4. **Complete the merge**: `git commit` (Git will provide a default merge commit message)
-
-Remember, regular communication with team members about active feature branches helps avoid conflicts and integration problems.
+## Git Strategy
+- Explained in detail in `cbatool-git-guide.md`
 
 ## Report Formats
 ### Excel Reports
@@ -328,7 +200,7 @@ Creation of new git feature branch feature/worker-management
 - Maintaining proper Git workflow with feature branches
 
 ## References
-- **Git Branching Strategy.md**
 - **CBAtool Development Progress and Next Steps**
 - **code-review-20250320.md** - Comprehensive code review with prioritized action items
 - **CableAnalysisTool-refactor.md** - Detailed refactoring analysis and strategy
+- **cbatool-git-guide.md** - Detailed guidance on project git repo usage and workflow
