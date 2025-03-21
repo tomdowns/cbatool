@@ -43,6 +43,12 @@ logger = logging.getLogger(__name__)
 # Get system information
 SYSTEM = platform.system()  # 'Darwin' for macOS, 'Windows' for Windows, 'Linux' for Linux
 
+# Import worker classes
+from ..utils.worker_utils import BaseAnalysisWorker
+from ..utils.depth_analysis_worker import DepthAnalysisWorker
+from ..utils.position_analysis_worker import PositionAnalysisWorker
+from ..utils.complete_analysis_worker import CompleteAnalysisWorker
+
 
 class ConsoleRedirector:
 	"""Class for redirecting print statements to a tkinter Text widget."""
@@ -723,7 +729,7 @@ class CableAnalysisTool:
 		)
   
 	def _complete_analysis_worker(self):
-		"""Worker thread for running complete analysis."""
+		"""Worker thread for running complete analysis (DEPRECATED - use CompleteAnalysisWorker instead)."""
 		try:
 			# Redirect stdout to console
 			original_stdout = sys.stdout
@@ -838,14 +844,30 @@ class CableAnalysisTool:
 		self._run_analysis_thread()
 	
 	def _run_analysis_thread(self):
-		"""Run analysis in a background thread."""
+		"""Run depth analysis in a background thread using DepthAnalysisWorker."""
+		# Prepare parameters for the worker
+		params = {
+			'file_path': self.file_path.get(),
+			'output_dir': self.output_dir.get(),
+			'depth_column': self.depth_column.get(),
+			'kp_column': self.kp_column.get() if self.kp_column.get() else None,
+			'position_column': self.position_column.get() if self.position_column.get() else None,
+			'target_depth': self.target_depth.get(),
+			'max_depth': self.max_depth.get(),
+			'ignore_anomalies': self.ignore_anomalies.get(),
+			'sheet_name': self.sheet_name.get()
+		}
+		
+		# Create the worker
+		worker = DepthAnalysisWorker(self, params)
+		
 		# Create and start thread
-		analysis_thread = threading.Thread(target=self._analysis_worker)
+		analysis_thread = threading.Thread(target=worker.run)
 		analysis_thread.daemon = True
 		analysis_thread.start()
 	
 	def _analysis_worker(self):
-		"""Worker function for background analysis."""
+		"""Worker function for background analysis (DEPRECATED - use DepthAnalysisWorker instead)."""
 		try:
 			# 1. Load the data
 			print("Loading data...")
@@ -1036,13 +1058,26 @@ class CableAnalysisTool:
 		)
 
 	def _run_position_analysis_thread(self, kp_column, dcc_column=None, lat_column=None, 
-									lon_column=None, easting_column=None, northing_column=None):
-		"""Run position analysis in a background thread."""
+								lon_column=None, easting_column=None, northing_column=None):
+		"""Run position analysis in a background thread using PositionAnalysisWorker."""
+		# Prepare parameters for the worker
+		params = {
+			'file_path': self.file_path.get(),
+			'output_dir': self.output_dir.get(),
+			'kp_column': kp_column,
+			'dcc_column': dcc_column,
+			'lat_column': lat_column,
+			'lon_column': lon_column,
+			'easting_column': easting_column,
+			'northing_column': northing_column,
+			'sheet_name': self.sheet_name.get()
+		}
+		
+		# Create the worker
+		worker = PositionAnalysisWorker(self, params)
+		
 		# Create and start thread
-		analysis_thread = threading.Thread(
-			target=self._position_analysis_worker,
-			args=(kp_column, dcc_column, lat_column, lon_column, easting_column, northing_column)
-		)
+		analysis_thread = threading.Thread(target=worker.run)
 		analysis_thread.daemon = True
 		analysis_thread.start()
 
@@ -1061,14 +1096,48 @@ class CableAnalysisTool:
 			messagebox.showerror("Error", "Please select a KP column for position analysis.")
 			return
 		
+		if not self.output_dir.get():
+			# Prompt for output directory
+			output_dir = filedialog.askdirectory(
+				title="Select Output Directory for Analysis Results",
+				initialdir=os.path.dirname(self.file_path.get())
+			)
+			
+			if not output_dir:
+				return
+			
+			self.output_dir.set(output_dir)
+		
 		# Clear console
 		self.console.clear()
 		
 		# Update status
 		self.set_status("Running complete analysis...")
 		
+		# Prepare parameters for the worker
+		params = {
+			'file_path': self.file_path.get(),
+			'output_dir': self.output_dir.get(),
+			'depth_column': self.depth_column.get(),
+			'kp_column': self.kp_column.get(),
+			'position_column': self.position_column.get() if self.position_column.get() else None,
+			'lat_column': self.lat_column.get() if self.lat_column.get() else None,
+			'lon_column': self.lon_column.get() if self.lon_column.get() else None,
+			'easting_column': self.easting_column.get() if self.easting_column.get() else None,
+			'northing_column': self.northing_column.get() if self.northing_column.get() else None,
+			'target_depth': self.target_depth.get(),
+			'max_depth': self.max_depth.get(),
+			'ignore_anomalies': self.ignore_anomalies.get(),
+			'sheet_name': self.sheet_name.get(),
+			'kp_jump_threshold': 0.1,  # Could be made configurable
+			'kp_reversal_threshold': 0.0001  # Could be made configurable
+		}
+		
+		# Create the worker
+		worker = CompleteAnalysisWorker(self, params)
+		
 		# Run as a separate thread to keep UI responsive
-		analysis_thread = threading.Thread(target=self._complete_analysis_worker)
+		analysis_thread = threading.Thread(target=worker.run)
 		analysis_thread.daemon = True
 		analysis_thread.start()
 
@@ -1217,7 +1286,7 @@ class CableAnalysisTool:
 			sys.stdout = original_stdout
 
 	def _position_analysis_worker(self, kp_column, dcc_column=None, lat_column=None, lon_column=None, easting_column=None, northing_column=None):
-		"""Worker function for background position analysis."""
+		"""Worker function for background position analysis (DEPRECATED - use PositionAnalysisWorker instead)."""
 		try:
 			# 1. Load the data
 			print("Loading data...")
