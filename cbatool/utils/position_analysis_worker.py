@@ -123,7 +123,7 @@ class PositionAnalysisWorker(BaseAnalysisWorker):
         kp_jump_threshold = self.params.get('kp_jump_threshold', 0.1)
         kp_reversal_threshold = self.params.get('kp_reversal_threshold', 0.0001)
         
-        # Run analysis - FIXED: Using analyze_position_data instead of analyze_data
+        # Run analysis
         success = self.position_analyzer.analyze_position_data(
             kp_jump_threshold=kp_jump_threshold,
             kp_reversal_threshold=kp_reversal_threshold
@@ -219,6 +219,10 @@ class PositionAnalysisWorker(BaseAnalysisWorker):
         Returns:
             DataFrame of anomalous points or None if no anomalies found
         """
+        # Add null check for position_analyzer.data
+        if self.position_analyzer.data is None:
+            return None
+            
         # Potential anomaly flags
         anomaly_flags = [
             'Is_KP_Jump', 'Is_KP_Reversal', 'Is_KP_Duplicate', 

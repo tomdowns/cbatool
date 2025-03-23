@@ -154,9 +154,28 @@ class TestDepthAnalysisWorker(unittest.TestCase):
         invalid_params = self.test_params.copy()
         del invalid_params['depth_column']
         
-        worker = DepthAnalysisWorker(self.mock_app, invalid_params)
-        with self.assertRaises(ValueError):
+        # Create a custom test worker class that doesn't validate params in init
+        class TestWorker(DepthAnalysisWorker):
+            def __init__(self, app_instance, params):
+                self.app = app_instance
+                self.params = params
+                self.output_dir = params.get('output_dir', '')
+                self.results = {}
+                
+                # Initialize core analysis components
+                self.depth_analyzer = DepthAnalyzer()
+                self.visualizer = MagicMock()
+                self.report_generator = MagicMock()
+        
+        # Create instance of test worker with invalid params
+        worker = TestWorker(self.mock_app, invalid_params)
+        
+        # Now verify it raises the expected exception
+        with self.assertRaises(ValueError) as context:
             worker._validate_parameters()
+        
+        # Verify the error message
+        self.assertIn("Missing required parameter: depth_column", str(context.exception))
     
     @patch('os.makedirs')
     def test_load_data(self, mock_makedirs):
@@ -323,9 +342,28 @@ class TestPositionAnalysisWorker(unittest.TestCase):
         invalid_params = self.test_params.copy()
         del invalid_params['kp_column']
         
-        worker = PositionAnalysisWorker(self.mock_app, invalid_params)
-        with self.assertRaises(ValueError):
+        # Create a custom test worker class that doesn't validate params in init
+        class TestWorker(PositionAnalysisWorker):
+            def __init__(self, app_instance, params):
+                self.app = app_instance
+                self.params = params
+                self.output_dir = params.get('output_dir', '')
+                self.results = {}
+                
+                # Initialize core analysis components
+                self.position_analyzer = PositionAnalyzer()
+                self.visualizer = MagicMock()
+                self.report_generator = MagicMock()
+        
+        # Create instance of test worker with invalid params
+        worker = TestWorker(self.mock_app, invalid_params)
+        
+        # Now verify it raises the expected exception
+        with self.assertRaises(ValueError) as context:
             worker._validate_parameters()
+        
+        # Verify the error message
+        self.assertIn("Missing required parameter: kp_column", str(context.exception))
     
     @patch('os.makedirs')
     def test_load_data(self, mock_makedirs):
@@ -429,7 +467,8 @@ class TestPositionAnalysisWorker(unittest.TestCase):
         # Create test data with anomalies
         anomaly_data = self.test_data.copy()
         anomaly_data['Is_KP_Jump'] = np.zeros(100, dtype=bool)
-        anomaly_data['Is_KP_Jump'][10:15] = True  # Mark some rows as anomalies
+        # Fix: Use .loc for setting values to avoid the SettingWithCopyWarning
+        anomaly_data.loc[10:15, 'Is_KP_Jump'] = True  # Mark some rows as anomalies
         
         # Set as the analyzer's data
         self.worker.position_analyzer.data = anomaly_data
@@ -439,7 +478,7 @@ class TestPositionAnalysisWorker(unittest.TestCase):
         
         # Check the result
         self.assertIsInstance(result, pd.DataFrame)
-        self.assertEqual(len(result), 5)  # Should have 5 anomalies
+        self.assertEqual(len(result), 6)  # Should have 6 anomalies (indices 10 through 15 inclusive)
 
 
 if __name__ == '__main__':
