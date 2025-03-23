@@ -1,0 +1,116 @@
+### Repository Structure ###
+.
+├── Current_File_Structure.txt
+├── README.md
+├── cbatool
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   └── __main__.cpython-311.pyc
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── analyzer.cpython-311.pyc
+│   │   │   ├── data_loader.cpython-311.pyc
+│   │   │   ├── position_analyzer.cpython-311.pyc
+│   │   │   ├── position_visualizer.cpython-311.pyc
+│   │   │   ├── range_selector.cpython-311.pyc
+│   │   │   └── visualizer.cpython-311.pyc
+│   │   ├── analyzer.py
+│   │   ├── data_loader.py
+│   │   ├── position_analyzer.py
+│   │   ├── position_visualizer.py
+│   │   └── visualizer.py
+│   ├── tests
+│   │   ├── _init_.py
+│   │   └── test_core.py
+│   ├── ui
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── app.cpython-311.pyc
+│   │   │   ├── dialogs.cpython-311.pyc
+│   │   │   └── widgets.cpython-311.pyc
+│   │   ├── app.py
+│   │   ├── dialogs.py
+│   │   └── widgets.py
+│   └── utils
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-311.pyc
+│       │   ├── config_manager.cpython-311.pyc
+│       │   ├── constants.cpython-311.pyc
+│       │   ├── file_operations.cpython-311.pyc
+│       │   └── report_generator.cpython-311.pyc
+│       ├── config_manager.py
+│       ├── constants.py
+│       ├── error_handling.py
+│       ├── file_operations.py
+│       └── report_generator.py
+├── cbatool.egg-info
+│   ├── PKG-INFO
+│   ├── SOURCES.txt
+│   ├── dependency_links.txt
+│   ├── entry_points.txt
+│   ├── requires.txt
+│   └── top_level.txt
+├── docs
+│   ├── cbatool-development-summary.md
+│   ├── cbatool-troubleshooting-summary.md
+│   ├── file-structure.txt
+│   ├── improvement-plan.md
+│   ├── phase2-improvements.md
+│   ├── position-analysis-requirements.md
+│   └── readme.md
+├── repo_info.txt
+├── repo_structure.txt
+├── setup.py
+└── test_imports.py
+
+12 directories, 57 files
+
+### Current Branch & Status ###
+On branch feature/complete-analysis
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	Current_File_Structure.txt
+	docs/cbatool-development-summary.md
+	docs/position-analysis-requirements.md
+	repo_info.txt
+	repo_structure.txt
+
+nothing added to commit but untracked files present (use "git add" to track)
+
+### All Branches ###
+  develop
+  feature/advanced-configuration-system
+  feature/advanced-visualization
+* feature/complete-analysis
+  feature/comprehensive-reporting
+  feature/configuration-save-load
+  feature/enhanced-dark-mode
+  feature/improved-dark-mode
+  feature/position-analysis
+  feature/ui-modernization
+  feature/visualization-controls
+  feature/visualization-enhancements
+  main
+  remotes/origin/develop
+  remotes/origin/feature/advanced-configuration-system
+  remotes/origin/feature/advanced-visualization
+  remotes/origin/feature/configuration-save-load
+  remotes/origin/feature/enhanced-dark-mode
+  remotes/origin/feature/improved-dark-mode
+  remotes/origin/feature/ui-modernization
+  remotes/origin/feature/visualization-controls
+  remotes/origin/feature/visualization-enhancements
+  remotes/origin/main
+
+### Last 5 Commits ###
+270392a Finalize complete analysis workflow with comprehensive reporting
+860c58c Add Run Complete Analysis button to UI
+03509a8 Fix visualization file reference in comprehensive reporting
+615a46a Implement comprehensive reporting system with Excel and PDF reports
+6666555 Improve configuration accessibility by using Documents folder and adding UI access

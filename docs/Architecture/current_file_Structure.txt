@@ -1,0 +1,69 @@
+.
+├── Current_File_Structure.txt
+├── README.md
+├── cbatool
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   └── __main__.cpython-311.pyc
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── analyzer.cpython-311.pyc
+│   │   │   ├── data_loader.cpython-311.pyc
+│   │   │   ├── position_analyzer.cpython-311.pyc
+│   │   │   ├── position_visualizer.cpython-311.pyc
+│   │   │   ├── range_selector.cpython-311.pyc
+│   │   │   └── visualizer.cpython-311.pyc
+│   │   ├── analyzer.py
+│   │   ├── data_loader.py
+│   │   ├── position_analyzer.py
+│   │   ├── position_visualizer.py
+│   │   └── visualizer.py
+│   ├── tests
+│   │   ├── _init_.py
+│   │   └── test_core.py
+│   ├── ui
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── app.cpython-311.pyc
+│   │   │   ├── dialogs.cpython-311.pyc
+│   │   │   └── widgets.cpython-311.pyc
+│   │   ├── app.py
+│   │   ├── dialogs.py
+│   │   └── widgets.py
+│   └── utils
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-311.pyc
+│       │   ├── config_manager.cpython-311.pyc
+│       │   ├── constants.cpython-311.pyc
+│       │   ├── file_operations.cpython-311.pyc
+│       │   └── report_generator.cpython-311.pyc
+│       ├── config_manager.py
+│       ├── constants.py
+│       ├── error_handling.py
+│       ├── file_operations.py
+│       └── report_generator.py
+├── cbatool.egg-info
+│   ├── PKG-INFO
+│   ├── SOURCES.txt
+│   ├── dependency_links.txt
+│   ├── entry_points.txt
+│   ├── requires.txt
+│   └── top_level.txt
+├── docs
+│   ├── cbatool-development-summary.md
+│   ├── cbatool-troubleshooting-summary.md
+│   ├── file-structure.txt
+│   ├── improvement-plan.md
+│   ├── phase2-improvements.md
+│   ├── position-analysis-requirements.md
+│   └── readme.md
+├── setup.py
+└── test_imports.py
+
+12 directories, 55 files
