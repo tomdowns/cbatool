@@ -9,11 +9,14 @@ import pandas as pd
 import numpy as np
 import logging
 from typing import Optional, Dict, List, Tuple, Any, Union
+from datetime import datetime
+
+from .base_analyzer import BaseAnalyzer
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-class PositionAnalyzer:
+class PositionAnalyzer(BaseAnalyzer):
     """
     Class for analyzing cable position data quality and detecting position anomalies.
     
@@ -33,62 +36,33 @@ class PositionAnalyzer:
         Args:
             data: DataFrame containing cable position data (optional).
         """
-        self.data = data
-        self.kp_column = None
+        super().__init__(data)
         self.dcc_column = None
         self.lat_column = None
         self.lon_column = None
         self.easting_column = None
         self.northing_column = None
-        self.analysis_results = {}
         
-    def set_data(self, data: pd.DataFrame) -> bool:
+    def _set_specific_columns(self, dcc_column: Optional[str] = None, 
+                             lat_column: Optional[str] = None, 
+                             lon_column: Optional[str] = None,
+                             easting_column: Optional[str] = None, 
+                             northing_column: Optional[str] = None,
+                             **kwargs) -> bool:
         """
-        Set the data to analyze.
-        
-        Args:
-            data: DataFrame containing cable position data.
-            
-        Returns:
-            bool: True if data was set successfully, False otherwise.
-        """
-        if data is None or data.empty:
-            logger.error("Cannot set empty data for position analysis")
-            return False
-            
-        self.data = data
-        logger.info(f"Data set for position analysis: {len(data)} rows, {len(data.columns)} columns")
-        return True
-    
-    def set_columns(self, kp_column: str, dcc_column: Optional[str] = None, 
-               lat_column: Optional[str] = None, lon_column: Optional[str] = None,
-               easting_column: Optional[str] = None, northing_column: Optional[str] = None) -> bool:
-        """
-        Set the column names to use for position analysis.
+        Set position-specific column names for analysis.
         
         Args:
-            kp_column: Name of the column containing KP values.
             dcc_column: Name of the column containing DCC values (optional).
             lat_column: Name of the column containing latitude values (optional).
             lon_column: Name of the column containing longitude values (optional).
             easting_column: Name of the column containing easting values (optional).
             northing_column: Name of the column containing northing values (optional).
+            **kwargs: Additional column specifications not used by this analyzer.
             
         Returns:
             bool: True if columns were set successfully, False otherwise.
         """
-        if self.data is None:
-            logger.error("No data loaded for column setting")
-            return False
-            
-        # Validate KP column exists
-        if kp_column not in self.data.columns:
-            logger.error(f"KP column '{kp_column}' not found in data")
-            return False
-            
-        self.kp_column = kp_column
-        logger.info(f"Using KP column: {kp_column}")
-        
         # Set DCC column if provided
         if dcc_column and dcc_column in self.data.columns:
             self.dcc_column = dcc_column
@@ -134,14 +108,15 @@ class PositionAnalyzer:
             
         return True
 
-    def analyze_position_data(self, kp_jump_threshold: float = 0.1, 
-                            kp_reversal_threshold: float = 0.0001) -> bool:
+    def analyze_data(self, kp_jump_threshold: float = 0.1, 
+                   kp_reversal_threshold: float = 0.0001, **kwargs) -> bool:
         """
         Perform analysis on position data to detect anomalies and assess quality.
         
         Args:
             kp_jump_threshold: Threshold for detecting jumps in KP values.
             kp_reversal_threshold: Threshold for detecting reversals in KP values.
+            **kwargs: Additional parameters not used by this analyzer.
             
         Returns:
             bool: True if analysis was successful, False otherwise.
@@ -398,17 +373,39 @@ class PositionAnalyzer:
         Returns:
             Dictionary containing analysis summary.
         """
-        if 'summary' not in self.analysis_results:
-            return {'status': 'Position analysis not complete'}
+        # First try to get standard summary from parent class
+        summary = super().get_analysis_summary()
+        
+        # Add position-specific summary data
+        if 'summary' in self.analysis_results:
+            # Add key metrics from the detailed summary
+            position_summary = self.analysis_results['summary']
             
-        return self.analysis_results['summary']
+            for key, value in position_summary.items():
+                if key not in ['quality_counts', 'anomalies', 'dcc_statistics'] and not isinstance(value, dict):
+                    summary[key] = value
+                    
+            # Add anomaly counts
+            if 'anomalies' in position_summary:
+                anomalies = position_summary['anomalies']
+                summary['kp_jumps'] = anomalies.get('kp_jumps', 0)
+                summary['kp_reversals'] = anomalies.get('kp_reversals', 0)
+                summary['kp_duplicates'] = anomalies.get('kp_duplicates', 0)
+            
+            # Add quality distribution
+            if 'quality_counts' in position_summary:
+                quality_counts = position_summary['quality_counts']
+                summary['quality_distribution'] = quality_counts
+        
+        return summary
     
-    def identify_problem_sections(self, min_length: int = 5) -> pd.DataFrame:
+    def identify_problem_sections(self, min_section_length: int = 5, **kwargs) -> pd.DataFrame:
         """
         Identify continuous sections with position quality issues.
         
         Args:
-            min_length: Minimum number of consecutive points to consider as a segment.
+            min_section_length: Minimum number of consecutive points to consider as a segment.
+            **kwargs: Additional parameters not used by this analyzer.
             
         Returns:
             DataFrame with problem sections information.
@@ -435,7 +432,7 @@ class PositionAnalyzer:
         
         # Analyze each segment
         for segment_id, group in data[data['Is_Problem']].groupby('Segment_ID'):
-            if len(group) < min_length:
+            if len(group) < min_section_length:
                 continue
                 
             segment = {
@@ -448,7 +445,8 @@ class PositionAnalyzer:
                 'End_Index': group.index.max(),
                 'Avg_Quality_Score': group['Position_Quality_Score'].mean(),
                 'Has_KP_Jumps': group['Is_KP_Jump'].any(),
-                'Has_KP_Reversals': group['Is_KP_Reversal'].any()
+                'Has_KP_Reversals': group['Is_KP_Reversal'].any(),
+                'Severity': self._determine_segment_severity(group)
             }
             
             # Add DCC information if available
@@ -472,3 +470,333 @@ class PositionAnalyzer:
             logger.info("No position problem sections identified")
             self.analysis_results['problem_sections'] = pd.DataFrame()
             return pd.DataFrame()
+            
+    def _determine_segment_severity(self, segment_group: pd.DataFrame) -> str:
+        """
+        Determine severity of a problem segment based on quality score and anomalies.
+        
+        Args:
+            segment_group: DataFrame containing the segment data
+            
+        Returns:
+            str: Severity level ('High', 'Medium', or 'Low')
+        """
+        # Check for KP reversals (highest priority)
+        if segment_group['Is_KP_Reversal'].any():
+            return 'High'
+            
+        # Check for KP jumps
+        if segment_group['Is_KP_Jump'].any():
+            return 'Medium'
+            
+        # Check average quality score
+        avg_quality = segment_group['Position_Quality_Score'].mean()
+        
+        if avg_quality < 0.2:
+            return 'High'
+        elif avg_quality < 0.5:
+            return 'Medium'
+        else:
+            return 'Low'
+            
+    def _get_analysis_type(self) -> str:
+        """Get the type of analysis."""
+        return "position"
+        
+    def _populate_problem_sections(self, standardized: Dict[str, Any]) -> None:
+        """
+        Populate problem sections data in the standardized structure.
+        
+        Args:
+            standardized: Dictionary with standardized structure to populate
+        """
+        if 'problem_sections' not in self.analysis_results or self.analysis_results['problem_sections'] is None or \
+           isinstance(self.analysis_results['problem_sections'], pd.DataFrame) and self.analysis_results['problem_sections'].empty:
+            return
+            
+        problem_sections = self.analysis_results['problem_sections']
+        
+        # Set total count
+        standardized["problem_sections"]["total_count"] = len(problem_sections)
+        
+        # Populate severity breakdown
+        if 'Severity' in problem_sections.columns:
+            for severity in ['High', 'Medium', 'Low']:
+                severity_key = severity.lower()
+                sections = problem_sections[problem_sections['Severity'] == severity]
+                count = len(sections)
+                standardized["problem_sections"]["severity_breakdown"][severity_key]["count"] = count
+                
+                if 'Length_KP' in sections.columns:
+                    # Convert KP length to meters (KP is in kilometers)
+                    total_length = sections['Length_KP'].sum() * 1000
+                    standardized["problem_sections"]["severity_breakdown"][severity_key]["total_length"] = total_length
+        
+        # Populate details
+        for _, section in problem_sections.iterrows():
+            # Extract key information
+            detail = {
+                "section_id": str(section.get('Segment_ID', '')),
+                "severity": section.get('Severity', 'Medium').lower(),
+                "start_position": section.get('Start_KP', 0.0),
+                "end_position": section.get('End_KP', 0.0),
+                "length": section.get('Length_KP', 0.0) * 1000,  # Convert KP to meters
+                "deviation": 0.0,  # Position doesn't have a deviation concept like depth
+                "recommended_action": self._get_position_recommendation(section)
+            }
+            standardized["problem_sections"]["details"].append(detail)
+            
+    def _get_position_recommendation(self, section: pd.Series) -> str:
+        """
+        Generate a recommendation for a position problem section.
+        
+        Args:
+            section: Series containing section data
+            
+        Returns:
+            str: Recommendation text
+        """
+        severity = section.get('Severity', 'Medium')
+        
+        if severity == 'High':
+            if section.get('Has_KP_Reversals', False):
+                return "Investigate KP reversals - potential data sequence issue"
+            else:
+                return "Review position data - critical quality issues detected"
+        elif severity == 'Medium':
+            if section.get('Has_KP_Jumps', False):
+                return "Check for gaps in position data"
+            else:
+                return "Validate position measurements"
+        else:
+            return "Monitor position data quality"
+
+    def _populate_anomalies(self, standardized: Dict[str, Any]) -> None:
+        """
+        Populate anomalies data in the standardized structure.
+        
+        Args:
+            standardized: Dictionary with standardized structure to populate
+        """
+        # Get position analysis data
+        if 'position_analysis' not in self.analysis_results or self.analysis_results['position_analysis'] is None:
+            return
+            
+        position_data = self.analysis_results['position_analysis']
+        
+        # Find all anomalies (KP jumps, reversals, duplicates, significant deviations)
+        anomaly_flags = ['Is_KP_Jump', 'Is_KP_Reversal', 'Is_KP_Duplicate', 'Is_Significant_Deviation']
+        
+        # Create mask for any anomaly
+        anomaly_mask = False
+        for flag in anomaly_flags:
+            if flag in position_data.columns:
+                anomaly_mask |= position_data[flag]
+                
+        # Filter anomalies
+        anomalies = position_data[anomaly_mask]
+        
+        if anomalies.empty:
+            return
+            
+        # Set total count
+        standardized["anomalies"]["total_count"] = len(anomalies)
+        
+        # Populate severity breakdown
+        high_count = len(anomalies[anomalies['Is_KP_Reversal']]) if 'Is_KP_Reversal' in anomalies.columns else 0
+        medium_count = len(anomalies[anomalies['Is_KP_Jump']]) if 'Is_KP_Jump' in anomalies.columns else 0
+        # Everything else is low
+        low_count = len(anomalies) - high_count - medium_count
+        
+        standardized["anomalies"]["severity_breakdown"]["high"]["count"] = high_count
+        standardized["anomalies"]["severity_breakdown"]["medium"]["count"] = medium_count 
+        standardized["anomalies"]["severity_breakdown"]["low"]["count"] = low_count
+        
+        # Populate details
+        for idx, anomaly in anomalies.iterrows():
+            # Determine anomaly type and severity
+            anomaly_type = "Unknown"
+            severity = "low"
+            
+            if 'Is_KP_Reversal' in anomalies.columns and anomaly['Is_KP_Reversal']:
+                anomaly_type = "KP Reversal"
+                severity = "high"
+            elif 'Is_KP_Jump' in anomalies.columns and anomaly['Is_KP_Jump']:
+                anomaly_type = "KP Jump"
+                severity = "medium"
+            elif 'Is_KP_Duplicate' in anomalies.columns and anomaly['Is_KP_Duplicate']:
+                anomaly_type = "KP Duplicate"
+                severity = "low"
+            elif 'Is_Significant_Deviation' in anomalies.columns and anomaly['Is_Significant_Deviation']:
+                anomaly_type = "Significant Cross-Track Deviation"
+                severity = "medium"
+                
+            # Extract key information and create standardized entry
+            detail = {
+                "anomaly_id": str(idx),
+                "type": anomaly_type,
+                "severity": severity,
+                "position": anomaly.get(self.kp_column, 0.0),
+                "deviation": anomaly.get('DCC_Abs', 0.0) if 'DCC_Abs' in anomaly else 0.0,
+                "recommended_action": self._get_anomaly_recommendation(anomaly_type)
+            }
+            standardized["anomalies"]["details"].append(detail)
+            
+    def _get_anomaly_recommendation(self, anomaly_type: str) -> str:
+        """
+        Generate a recommendation for an anomaly.
+        
+        Args:
+            anomaly_type: Type of anomaly
+            
+        Returns:
+            str: Recommendation text
+        """
+        if anomaly_type == "KP Reversal":
+            return "Investigate KP reversal - check data sequence"
+        elif anomaly_type == "KP Jump":
+            return "Validate cable length and check for missing data points"
+        elif anomaly_type == "KP Duplicate":
+            return "Check for duplicate measurements"
+        elif anomaly_type == "Significant Cross-Track Deviation":
+            return "Verify route alignment and validate survey data"
+        else:
+            return "Investigate position data anomaly"
+
+    def _generate_recommendations(self, standardized: Dict[str, Any]) -> None:
+        """
+        Generate and add recommendations based on analysis results.
+        
+        Args:
+            standardized: Dictionary with standardized structure to populate
+        """
+        # Add recommendations based on KP anomalies
+        if 'summary' in self.analysis_results:
+            summary = self.analysis_results['summary']
+            if 'anomalies' in summary:
+                anomalies = summary['anomalies']
+                
+                # KP reversals (high severity)
+                kp_reversals = anomalies.get('kp_reversals', 0)
+                if kp_reversals > 0:
+                    standardized["recommendations"].append({
+                        "category": "Position",
+                        "severity": "High",
+                        "description": f"Found {kp_reversals} KP reversals",
+                        "action_items": ["Review data sequence and direction", 
+                                       "Check for coordinate system issues"]
+                    })
+                
+                # KP jumps (medium severity)
+                kp_jumps = anomalies.get('kp_jumps', 0)
+                if kp_jumps > 0:
+                    standardized["recommendations"].append({
+                        "category": "Position",
+                        "severity": "Medium",
+                        "description": f"Found {kp_jumps} KP jumps",
+                        "action_items": ["Check for missing data points", 
+                                       "Verify survey continuity"]
+                    })
+                
+                # KP duplicates (low severity)
+                kp_duplicates = anomalies.get('kp_duplicates', 0)
+                if kp_duplicates > 0:
+                    standardized["recommendations"].append({
+                        "category": "Position",
+                        "severity": "Low",
+                        "description": f"Found {kp_duplicates} duplicate KP values",
+                        "action_items": ["Review data for repeated measurements"]
+                    })
+        
+        # Add recommendations based on position quality
+        if 'position_analysis' in self.analysis_results:
+            position_data = self.analysis_results['position_analysis']
+            
+            if 'Position_Quality' in position_data.columns:
+                poor_count = (position_data['Position_Quality'] == 'Poor').sum()
+                suspect_count = (position_data['Position_Quality'] == 'Suspect').sum()
+                
+                if poor_count > 0:
+                    standardized["recommendations"].append({
+                        "category": "Position Quality",
+                        "severity": "Medium",
+                        "description": f"Found {poor_count} points with poor position quality",
+                        "action_items": ["Validate survey data", 
+                                       "Check for equipment calibration issues"]
+                    })
+                
+                if suspect_count > len(position_data) * 0.2:  # More than 20% suspect
+                    standardized["recommendations"].append({
+                        "category": "Position Quality",
+                        "severity": "Low",
+                        "description": f"High proportion of suspect quality positions ({suspect_count} points)",
+                        "action_items": ["Consider recalibration of positioning equipment for future surveys"]
+                    })
+                    
+        # Add recommendations based on cross-track deviation if available
+        if self.dcc_column and 'position_analysis' in self.analysis_results:
+            position_data = self.analysis_results['position_analysis']
+            
+            if 'Is_Significant_Deviation' in position_data.columns:
+                deviation_count = position_data['Is_Significant_Deviation'].sum()
+                
+                if deviation_count > 0:
+                    standardized["recommendations"].append({
+                        "category": "Route Alignment",
+                        "severity": "Medium",
+                        "description": f"Found {deviation_count} points with significant cross-track deviation",
+                        "action_items": ["Verify planned route alignment", 
+                                       "Check for position reference inconsistencies"]
+                    })
+    
+    def _populate_compliance_metrics(self, standardized: Dict[str, Any]) -> None:
+        """
+        Populate compliance metrics in the standardized structure.
+        
+        Args:
+            standardized: Dictionary with standardized structure to populate
+        """
+        # For position analysis, compliance metrics are based on position quality
+        if 'position_analysis' not in self.analysis_results:
+            return
+            
+        position_data = self.analysis_results['position_analysis']
+        
+        # Calculate overall quality percentage (percentage of "Good" quality points)
+        if 'Position_Quality' in position_data.columns:
+            good_points = (position_data['Position_Quality'] == 'Good').sum()
+            suspect_points = (position_data['Position_Quality'] == 'Suspect').sum()
+            poor_points = (position_data['Position_Quality'] == 'Poor').sum()
+            total_points = len(position_data)
+            
+            if total_points > 0:
+                quality_percentage = (good_points / total_points) * 100
+                standardized["compliance_metrics"]["total_compliance_percentage"] = quality_percentage
+                
+                # Also add quality distribution for reference
+                standardized["compliance_metrics"]["quality_distribution"] = {
+                    "good": good_points / total_points * 100,
+                    "suspect": suspect_points / total_points * 100,
+                    "poor": poor_points / total_points * 100
+                }
+        
+        # Calculate compliance by severity if we have problem sections
+        if 'problem_sections' in self.analysis_results and isinstance(self.analysis_results['problem_sections'], pd.DataFrame):
+            problem_sections = self.analysis_results['problem_sections']
+            
+            if not problem_sections.empty and 'Severity' in problem_sections.columns and 'Length_KP' in problem_sections.columns:
+                # Get total cable length from KP range
+                if self.kp_column and self.kp_column in position_data.columns:
+                    total_cable_length = (position_data[self.kp_column].max() - position_data[self.kp_column].min()) * 1000  # Convert to meters
+                else:
+                    total_cable_length = 1000  # Default value if KP info is not available
+                    
+                # Calculate percentages for each severity
+                for severity in ['High', 'Medium', 'Low']:
+                    severity_key = f"{severity.lower()}_risk_sections"
+                    sections = problem_sections[problem_sections['Severity'] == severity]
+                    
+                    if not sections.empty:
+                        total_length = sections['Length_KP'].sum() * 1000  # Convert KP to meters
+                        percentage = (total_length / total_cable_length) * 100
+                        standardized["compliance_metrics"]["compliance_by_severity"][severity_key] = percentage

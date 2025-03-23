@@ -95,6 +95,74 @@
         "Encourages testing and proper documentation",
         "Promotes careful, thoughtful changes with verification steps"
       ]
+    },
+    {
+      "name": "CBAtool_Architecture",
+      "entityType": "information",
+      "observations": [
+        "Implements a class hierarchy with BaseAnalyzer as an abstract base class",
+        "Specialized analyzer classes include DepthAnalyzer and PositionAnalyzer",
+        "Uses worker pattern for background processing of analysis operations",
+        "Visualization components utilize Plotly for interactive HTML-based plots",
+        "Reporting system generates both Excel workbooks and PDF summaries",
+        "UI built with Tkinter using a component-based design",
+        "Configuration management using JSON-based storage in user Documents folder",
+        "Module structure follows core, ui, and utils separation of concerns"
+      ]
+    },
+    {
+      "name": "Recent_Achievements",
+      "entityType": "information",
+      "observations": [
+        "March 2025: Worker extraction phase completed, improving architectural foundation",
+        "March 2025: Coordinate column support implemented for both lat/lon and easting/northing",
+        "March 2025: Configuration management system implemented with save/load functionality",
+        "March 2025: Standardized BaseAnalyzer abstract class implemented",
+        "March 2025: UI improvements including coordinate column selectors added",
+        "March 2025: Complete analysis workflow implemented combining depth and position analysis"
+      ]
+    },
+    {
+      "name": "Reporting_System",
+      "entityType": "information",
+      "observations": [
+        "Generates comprehensive Excel reports with multiple sheets for different analysis aspects",
+        "Creates PDF summary reports with key findings and recommendations",
+        "Current issues include empty PDF reports and missing data in Excel sheets",
+        "Uses a standardized data structure for consistency across report types",
+        "Implements severity classification (High, Medium, Low) for findings",
+        "Generates actionable recommendations based on analysis results",
+        "Links to interactive visualizations for detailed exploration",
+        "Being enhanced to support multiple analysis types (Depth, Position, Combined)"
+      ]
+    },
+    {
+      "name": "Development_Workflow",
+      "entityType": "information",
+      "observations": [
+        "Uses a three-tier branching strategy: main (stable), develop (integration), feature branches",
+        "Follows conventional commit format for clear change documentation",
+        "Classifies improvements by size (Small, Medium, Large), impact, and priority",
+        "Implements iterative, incremental improvement approach",
+        "Records architectural decisions in ADRs (Architectural Decision Records)",
+        "Maintains improvement trackers for significant changes",
+        "Conducts systematic code reviews using standardized criteria",
+        "Documents changes in a structured changelog"
+      ]
+    },
+    {
+      "name": "Current_Priorities",
+      "entityType": "information",
+      "observations": [
+        "Fix reporting functionality issues including empty PDF reports and Excel formatting",
+        "Implement comprehensive testing for the new architecture and worker implementation",
+        "Complete UI component modularization for better maintainability",
+        "Standardize error handling across all components",
+        "Improve position analysis with better coordinate system support",
+        "Enhance documentation with updated architecture diagrams and component descriptions",
+        "Address technical debt in older components that haven't been refactored",
+        "Improve test coverage across the codebase"
+      ]
     }
   ],
   "relations": [
@@ -122,6 +190,46 @@
       "from": "Development_Principles",
       "to": "AI_Coding_Safety_Principles",
       "relationType": "includes"
+    },
+    {
+      "from": "CBAtool", 
+      "to": "CBAtool_Architecture",
+      "relationType": "implements"
+    },
+    {
+      "from": "CBAtool",
+      "to": "Recent_Achievements",
+      "relationType": "achieved"
+    },
+    {
+      "from": "CBAtool",
+      "to": "Reporting_System",
+      "relationType": "includes"
+    },
+    {
+      "from": "CBAtool",
+      "to": "Development_Workflow",
+      "relationType": "follows"
+    },
+    {
+      "from": "CBAtool",
+      "to": "Current_Priorities",
+      "relationType": "focuses on"
+    },
+    {
+      "from": "Development_Issues",
+      "to": "Reporting_System",
+      "relationType": "impacts"
+    },
+    {
+      "from": "Development_Workflow",
+      "to": "Development_Principles",
+      "relationType": "implements"
+    },
+    {
+      "from": "Current_Priorities",
+      "to": "Reporting_System",
+      "relationType": "addresses"
     }
   ]
 }

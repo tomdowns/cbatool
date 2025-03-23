@@ -8,8 +8,7 @@ the common interface for all analysis types.
 from abc import ABC, abstractmethod
 import pandas as pd
 import logging
-from typing import Optional, Dict, List, Any, Union, Tuple
-from datetime import datetime
+from typing import Optional, Dict, List, Any, Union
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -158,92 +157,3 @@ class BaseAnalyzer(ABC):
             str: Name of the analysis type.
         """
         return "base"
-        
-    def get_standardized_results(self) -> Dict[str, Any]:
-        """
-        Get analysis results in a standardized format for reporting.
-        
-        Returns:
-            Dictionary with standardized data structure
-        """
-        # Base structure
-        standardized = {
-            "analysis_type": self._get_analysis_type(),
-            "timestamp": datetime.now(),
-            "problem_sections": {
-                "total_count": 0,
-                "severity_breakdown": {
-                    "high": {"count": 0, "total_length": 0},
-                    "medium": {"count": 0, "total_length": 0},
-                    "low": {"count": 0, "total_length": 0}
-                },
-                "details": []
-            },
-            "anomalies": {
-                "total_count": 0,
-                "severity_breakdown": {
-                    "high": {"count": 0},
-                    "medium": {"count": 0},
-                    "low": {"count": 0}
-                },
-                "details": []
-            },
-            "compliance_metrics": {
-                "total_compliance_percentage": 0.0,
-                "compliance_by_severity": {
-                    "high_risk_sections": 0.0,
-                    "medium_risk_sections": 0.0,
-                    "low_risk_sections": 0.0
-                }
-            },
-            "visualization_references": {},
-            "recommendations": []
-        }
-        
-        # Populate with actual data
-        self._populate_problem_sections(standardized)
-        self._populate_anomalies(standardized)
-        self._populate_compliance_metrics(standardized)
-        self._generate_recommendations(standardized)
-        
-        return standardized
-    
-    @abstractmethod
-    def _populate_problem_sections(self, standardized: Dict[str, Any]) -> None:
-        """
-        Populate problem sections data in the standardized structure.
-        
-        Args:
-            standardized: Dictionary with standardized structure to populate
-        """
-        pass
-    
-    @abstractmethod
-    def _populate_anomalies(self, standardized: Dict[str, Any]) -> None:
-        """
-        Populate anomalies data in the standardized structure.
-        
-        Args:
-            standardized: Dictionary with standardized structure to populate
-        """
-        pass
-    
-    @abstractmethod
-    def _populate_compliance_metrics(self, standardized: Dict[str, Any]) -> None:
-        """
-        Populate compliance metrics in the standardized structure.
-        
-        Args:
-            standardized: Dictionary with standardized structure to populate
-        """
-        pass
-    
-    @abstractmethod
-    def _generate_recommendations(self, standardized: Dict[str, Any]) -> None:
-        """
-        Generate and add recommendations based on analysis results.
-        
-        Args:
-            standardized: Dictionary with standardized structure to populate
-        """
-        pass

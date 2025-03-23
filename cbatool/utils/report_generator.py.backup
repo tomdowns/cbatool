@@ -621,9 +621,6 @@ class ReportGenerator:
 		Returns:
 			Path to the generated PDF file or empty string if generation failed
 		"""
-		# Import utility function
-		from ..utils.report_utils import extract_severity_distribution
-		
 		# Skip PDF generation if ReportLab is not available
 		if not REPORTLAB_AVAILABLE:
 			logger.warning("ReportLab not available - skipping PDF generation")
@@ -743,30 +740,24 @@ class ReportGenerator:
 			# Add problem sections if available
 			problem_sections = standardized_results.get('problem_sections', {})
 			if problem_sections:
-				logger.info(f"PDF generation: Problem sections types: {type(problem_sections)}")
+				logger.info(f"PDF generation: Problem sections types: {list(problem_sections.keys())}")
 				story.append(Paragraph("Problem Sections", heading_style))
 				story.append(Spacer(1, 0.1 * inch))
 				
-				# Get total count of problem sections
-				total_count = 0
-				if isinstance(problem_sections, dict) and 'total_count' in problem_sections:
-					total_count = problem_sections['total_count']
-				elif isinstance(problem_sections, dict) and 'details' in problem_sections:
-					total_count = len(problem_sections['details'])
-				elif isinstance(problem_sections, dict):
-					# Old format with multiple section types
-					for section_type, sections in problem_sections.items():
-						if isinstance(sections, pd.DataFrame):
-							total_count += len(sections)
-				
-				story.append(Paragraph(f"Found {total_count} problem sections.", normal_style))
-				
-				# Get severity distribution
-				severity_text = extract_severity_distribution(standardized_results)
-				if severity_text:
-					story.append(Paragraph(f"Severity distribution: {severity_text}", normal_style))
-				
-				story.append(Spacer(1, 0.15 * inch))
+				for section_type, sections in problem_sections.items():
+					if isinstance(sections, pd.DataFrame) and not sections.empty:
+						logger.info(f"PDF generation: Adding {len(sections)} {section_type} problem sections")
+						story.append(Paragraph(f"{section_type.title()} Problem Sections", subheading_style))
+						story.append(Paragraph(f"Found {len(sections)} problem sections.", normal_style))
+						
+						# Count by severity if available
+						if 'Severity' in sections.columns:
+							# Fix: Properly handle severity count
+							severity_counts = sections['Severity'].value_counts().to_dict()
+							severity_text = ", ".join([f"{count} {severity}" for severity, count in severity_counts.items()])
+							story.append(Paragraph(f"Severity distribution: {severity_text}", normal_style))
+						
+						story.append(Spacer(1, 0.15 * inch))
 			
 			# Add recommendations if available
 			recommendations = standardized_results.get('recommendations', [])
@@ -779,12 +770,11 @@ class ReportGenerator:
 					severity = rec.get('severity', 'Medium')
 					description = rec.get('description', '')
 					action = rec.get('action', '')
-					action_items = rec.get('action_items', [])
 					
 					# Create colored bullet based on severity
-					if severity.lower() == 'high':
+					if severity == 'High':
 						bullet_color = colors.red
-					elif severity.lower() == 'medium':
+					elif severity == 'Medium':
 						bullet_color = colors.orange
 					else:
 						bullet_color = colors.green
@@ -793,14 +783,8 @@ class ReportGenerator:
 					
 					# Add recommendation with colored bullet
 					story.append(Paragraph(f"{bullet} <b>{category} ({severity}):</b> {description}", normal_style))
-					
-					# Add action or action items
 					if action:
 						story.append(Paragraph(f"   Action: {action}", normal_style))
-					
-					if action_items:
-						for item in action_items:
-							story.append(Paragraph(f"   • {item}", normal_style))
 					
 					story.append(Spacer(1, 0.1 * inch))
 			
@@ -812,6 +796,9 @@ class ReportGenerator:
 					f"An interactive visualization is available at: {os.path.basename(visualization_path)}",
 					normal_style
 				))
+				
+				# Could add a static image of the visualization here if available
+				# This would require capturing a screenshot of the visualization
 			
 			# Add regulatory requirements if specified
 			if self.report_config.get('regulatory_requirements'):
@@ -828,46 +815,58 @@ class ReportGenerator:
 		except Exception as e:
 			logger.error(f"Error generating PDF summary: {str(e)}", exc_info=True)
 			return ""
-			
-			# Add report information
-			for report_name, report_path in reports.items():
-				if os.path.exists(report_path):
-					try:
-						xls = pd.ExcelFile(report_path)
-						total_rows = 0
-						
-						# Count total rows across all sheets
-						for sheet_name in xls.sheet_names:
-							df = pd.read_excel(report_path, sheet_name=sheet_name)
-							total_rows += len(df)
-						
-						summary_rows.append({
-							'Report Type': report_name,
-							'File': os.path.basename(report_path),
-							'Sheets': len(xls.sheet_names),
-							'Total Rows': total_rows,
-							'Date Generated': datetime.fromtimestamp(os.path.getmtime(report_path)).strftime('%Y-%m-%d %H:%M')
-						})
-					except Exception as e:
-						logger.error(f"Error analyzing report {report_name}: {e}")
-						summary_rows.append({
-							'Report Type': report_name,
-							'File': os.path.basename(report_path),
-							'Sheets': 'Error',
-							'Total Rows': 'Error',
-							'Date Generated': datetime.fromtimestamp(os.path.getmtime(report_path)).strftime('%Y-%m-%d %H:%M')
-						})
-			
-			# Add timestamp and metadata
-			metadata = [{
-				'Report Type': 'METADATA',
-				'File': 'N/A',
-				'Sheets': 'N/A',
-				'Total Rows': 'N/A',
-				'Date Generated': datetime.now().strftime('%Y-%m-%d %H:%M')
-			}]
-			
-			return pd.DataFrame(metadata + summary_rows)
+	
+	def _create_summary_sheet(self, reports: Dict[str, str]) -> pd.DataFrame:
+		"""
+		Create a summary sheet for the consolidated report.
+		
+		Args:
+			reports: Dictionary mapping report names to file paths
+		
+		Returns:
+			DataFrame with summary information
+		"""
+		summary_rows = []
+		
+		# Add report information
+		for report_name, report_path in reports.items():
+			if os.path.exists(report_path):
+				try:
+					xls = pd.ExcelFile(report_path)
+					total_rows = 0
+					
+					# Count total rows across all sheets
+					for sheet_name in xls.sheet_names:
+						df = pd.read_excel(report_path, sheet_name=sheet_name)
+						total_rows += len(df)
+					
+					summary_rows.append({
+						'Report Type': report_name,
+						'File': os.path.basename(report_path),
+						'Sheets': len(xls.sheet_names),
+						'Total Rows': total_rows,
+						'Date Generated': datetime.fromtimestamp(os.path.getmtime(report_path)).strftime('%Y-%m-%d %H:%M')
+					})
+				except Exception as e:
+					logger.error(f"Error analyzing report {report_name}: {e}")
+					summary_rows.append({
+						'Report Type': report_name,
+						'File': os.path.basename(report_path),
+						'Sheets': 'Error',
+						'Total Rows': 'Error',
+						'Date Generated': datetime.fromtimestamp(os.path.getmtime(report_path)).strftime('%Y-%m-%d %H:%M')
+					})
+		
+		# Add timestamp and metadata
+		metadata = [{
+			'Report Type': 'METADATA',
+			'File': 'N/A',
+			'Sheets': 'N/A',
+			'Total Rows': 'N/A',
+			'Date Generated': datetime.now().strftime('%Y-%m-%d %H:%M')
+		}]
+		
+		return pd.DataFrame(metadata + summary_rows)
 	
 	def _add_project_info_sheet(self, writer):
 		"""
@@ -1031,116 +1030,91 @@ class ReportGenerator:
 				cell = worksheet[f"{action_col_letter}{row_idx}"]
 				cell.alignment = Alignment(wrap_text=True)
 	
-	# Targeted fix for the create_comprehensive_report method
-def create_comprehensive_report(self, 
-							   analyzer_results: Dict[str, Any], 
-							   visualization_path: Optional[str] = None) -> Dict[str, str]:
-	"""
-	Create a comprehensive report from analyzer results.
-	
-	Args:
-		analyzer_results: Dictionary containing analyzer results or an Analyzer instance
-		visualization_path: Optional path to visualization file
-	
-	Returns:
-		Dictionary of generated report paths
-	"""
-	# Import the report utility functions
-	from ..utils.report_utils import (
-		validate_standardized_results,
-		extract_problem_sections,
-		extract_anomalies,
-		extract_recommendations,
-		create_compliance_metrics_dataframe
-	)
-	
-	# Step 1: Get standardized results
-	standardized_data = None
-	
-	# Check if we're dealing with an analyzer object with the new API
-	if hasattr(analyzer_results, 'get_standardized_results') and callable(getattr(analyzer_results, 'get_standardized_results')):
-		logger.info("Using get_standardized_results method from analyzer")
-		standardized_data = analyzer_results.get_standardized_results()
-	else:
-		# Determine if it's already standardized
-		if isinstance(analyzer_results, dict) and 'analysis_type' in analyzer_results:
-			logger.info("Using provided data as standardized results")
-			standardized_data = analyzer_results
-		else:
-			# Use the old standardization method
-			analysis_type = 'combined'
-			if isinstance(analyzer_results, dict):
-				if 'depth_analysis' in analyzer_results and 'position_analysis' not in analyzer_results:
-					analysis_type = 'depth'
-				elif 'position_analysis' in analyzer_results and 'depth_analysis' not in analyzer_results:
-					analysis_type = 'position'
-					
-			logger.info(f"Standardizing analyzer results for {analysis_type} analysis")
-			standardized_data = self._standardize_analysis_results(analyzer_results, analysis_type)
-	
-	# Step 2: Validate standardized results
-	if not validate_standardized_results(standardized_data):
-		logger.error("Invalid standardized data structure")
-		return {}
-	
-	# Step 3: Check visualization path
-	if visualization_path and not os.path.exists(visualization_path):
-		logger.warning(f"Visualization file not found: {visualization_path}")
-		visualization_path = None
-	
-	# Step 4: Get analysis type for consistent filenames
-	analysis_type = standardized_data.get('analysis_type', 'combined')
-	
-	# Step 5: Create individual Excel reports based on extracted data
-	report_files = {}
-	
-	# Process problem sections
-	problem_sections_df = extract_problem_sections(standardized_data)
-	if problem_sections_df is not None and not problem_sections_df.empty:
-		problem_sections_path = os.path.join(self.output_directory, f"{analysis_type}_problem_sections.xlsx")
-		problem_sections_df.to_excel(problem_sections_path, index=False)
-		report_files[f'{analysis_type.capitalize()} Problem Sections'] = problem_sections_path
-		logger.info(f"Created problem sections report: {problem_sections_path}")
-	
-	# Process anomalies
-	anomalies_df = extract_anomalies(standardized_data)
-	if anomalies_df is not None and not anomalies_df.empty:
-		anomalies_path = os.path.join(self.output_directory, f"{analysis_type}_anomalies.xlsx")
-		anomalies_df.to_excel(anomalies_path, index=False)
-		report_files[f'{analysis_type.capitalize()} Anomalies'] = anomalies_path
-		logger.info(f"Created anomalies report: {anomalies_path}")
-	
-	# Process recommendations
-	recommendations_df = extract_recommendations(standardized_data)
-	if recommendations_df is not None and not recommendations_df.empty:
-		recommendations_path = os.path.join(self.output_directory, "recommendations.xlsx")
-		recommendations_df.to_excel(recommendations_path, index=False)
-		report_files['Recommendations'] = recommendations_path
-		logger.info(f"Created recommendations report: {recommendations_path}")
-	
-	# Process compliance metrics
-	compliance_df = create_compliance_metrics_dataframe(standardized_data)
-	if compliance_df is not None and not compliance_df.empty:
-		compliance_path = os.path.join(self.output_directory, "compliance_metrics.xlsx")
-		compliance_df.to_excel(compliance_path, index=False)
-		report_files['Compliance Metrics'] = compliance_path
-		logger.info(f"Created compliance metrics report: {compliance_path}")
-	
-	# Step 6: Generate consolidated Excel report
-	excel_report = self.consolidate_excel_reports(report_files, f"{analysis_type}_analysis_report.xlsx")
-	
-	# Step 7: Generate PDF summary
-	pdf_report = self.generate_pdf_summary(
-		standardized_data, 
-		visualization_path,
-		f"{analysis_type}_analysis_summary.pdf"
-	)
-	
-	# Return all generated reports
-	return {
-		'excel_report': excel_report,
-		'pdf_report': pdf_report,
-		'visualization': visualization_path,
-		'individual_reports': report_files
-	}
-	
+	def create_comprehensive_report(self, 
+                              analyzer_results: Dict[str, Any], 
+                              visualization_path: Optional[str] = None) -> Dict[str, str]:
+		"""
+		Create a comprehensive report from analyzer results.
+		
+		Args:
+			analyzer_results: Dictionary containing analyzer results
+			visualization_path: Optional path to visualization file
+		
+		Returns:
+			Dictionary of generated report paths
+		"""
+		# Determine analysis type
+		analysis_type = 'combined'
+		if isinstance(analyzer_results, dict):
+			if 'depth_analysis' in analyzer_results and 'position_analysis' not in analyzer_results:
+				analysis_type = 'depth'
+			elif 'position_analysis' in analyzer_results and 'depth_analysis' not in analyzer_results:
+				analysis_type = 'position'
+		
+		# Standardize the results first
+		standardized_results = self._standardize_analysis_results(analyzer_results, analysis_type)
+		
+		# Check if visualization path exists
+		if visualization_path and not os.path.exists(visualization_path):
+			logger.warning(f"Visualization file not found: {visualization_path}")
+			visualization_path = None
+		
+		# Create individual Excel reports
+		report_files = {}
+		
+		# Generate reports for problem sections
+		for section_type, sections_df in standardized_results.get('problem_sections', {}).items():
+			if isinstance(sections_df, pd.DataFrame) and not sections_df.empty:
+				report_name = f"{section_type}_problem_sections"
+				file_path = os.path.join(self.output_directory, f"{report_name}.xlsx")
+				
+				# Save to Excel
+				sections_df.to_excel(file_path, index=False)
+				
+				# Add to report dictionary
+				report_files[f"{section_type.capitalize()} Problem Sections"] = file_path
+		
+		# Generate reports for anomalies
+		for anomaly_type, anomalies_df in standardized_results.get('anomalies', {}).items():
+			if isinstance(anomalies_df, pd.DataFrame) and not anomalies_df.empty:
+				report_name = f"{anomaly_type}_anomalies"
+				file_path = os.path.join(self.output_directory, f"{report_name}.xlsx")
+				
+				# Save to Excel
+				anomalies_df.to_excel(file_path, index=False)
+				
+				# Add to report dictionary
+				report_files[f"{anomaly_type.capitalize()} Anomalies"] = file_path
+		
+		# Generate recommendations report if there are any
+		recommendations = standardized_results.get('recommendations', [])
+		if recommendations:
+			report_name = "recommendations"
+			file_path = os.path.join(self.output_directory, f"{report_name}.xlsx")
+			
+			# Convert to DataFrame
+			recommendations_df = pd.DataFrame(recommendations)
+			
+			# Save to Excel
+			recommendations_df.to_excel(file_path, index=False)
+			
+			# Add to report dictionary
+			report_files["Recommendations"] = file_path
+		
+		# Generate consolidated Excel report
+		excel_report = self.consolidate_excel_reports(report_files, f"{analysis_type}_analysis_report.xlsx")
+		
+		# Generate PDF summary
+		pdf_report = self.generate_pdf_summary(
+			standardized_results, 
+			visualization_path,
+			f"{analysis_type}_analysis_summary.pdf"
+		)
+		
+		# Return all generated reports
+		return {
+			'excel_report': excel_report,
+			'pdf_report': pdf_report,
+			'visualization': visualization_path,
+			'individual_reports': report_files
+		}
