@@ -85,7 +85,7 @@ class TestPositionAnalysisWorker(unittest.TestCase):
         # Mock the position_analyzer
         self.worker.position_analyzer = MagicMock()
         self.worker.position_analyzer.analyze_position_data.return_value = True
-        self.worker.position_analyzer.identify_problem_segments.return_value = pd.DataFrame()
+        self.worker.position_analyzer.identify_problem_sections.return_value = pd.DataFrame()
         
         # Run the analysis
         self.worker.run_analysis()

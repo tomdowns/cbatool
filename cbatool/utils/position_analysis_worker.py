@@ -133,12 +133,12 @@ class PositionAnalysisWorker(BaseAnalysisWorker):
             raise RuntimeError("Position analysis failed")
         
         # Identify problem segments
-        problem_segments = self.position_analyzer.identify_problem_segments()
+        problem_sections = self.position_analyzer.identify_problem_sections()
         
         # Store results for further processing
         self.results['analysis_data'] = self.position_analyzer.data
         self.results['analysis_summary'] = self.position_analyzer.get_analysis_summary()
-        self.results['problem_segments'] = problem_segments
+        self.results['problem_sections'] = problem_sections
         
         print("Position analysis completed successfully")
     
@@ -185,8 +185,8 @@ class PositionAnalysisWorker(BaseAnalysisWorker):
         
         # Prepare analysis results for report generation
         analysis_results = self.position_analyzer.analysis_results.copy()
-        if 'problem_segments' in self.results:
-            analysis_results['problem_sections'] = self.results['problem_segments']
+        if 'problem_sections' in self.results:
+            analysis_results['problem_sections'] = self.results['problem_sections']
         
         # Generate comprehensive report
         reports = self.report_generator.create_comprehensive_report(

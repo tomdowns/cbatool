@@ -407,7 +407,7 @@ class TestPositionAnalysisWorker(unittest.TestCase):
         # Mock the position_analyzer methods
         # Note: This is where we're testing for the correct method name
         self.worker.position_analyzer.analyze_position_data = MagicMock(return_value=True)
-        self.worker.position_analyzer.identify_problem_segments = MagicMock(return_value=pd.DataFrame())
+        self.worker.position_analyzer.identify_problem_sections = MagicMock(return_value=pd.DataFrame())
         self.worker.position_analyzer.data = self.test_data
         self.worker.position_analyzer.analysis_results = {'key': 'value'}
         self.worker.position_analyzer.get_analysis_summary = MagicMock(return_value={'summary': 'test'})

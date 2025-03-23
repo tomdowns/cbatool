@@ -151,11 +151,11 @@ class CompleteAnalysisWorker(BaseAnalysisWorker):
             print("Position analysis completed successfully")
             
             # Identify problem segments
-            problem_segments = self.position_analyzer.identify_problem_sections()
+            problem_sections = self.position_analyzer.identify_problem_sections()
             
-            if not problem_segments.empty:
-                print(f"Identified {len(problem_segments)} position problem sections")
-                self.results['position_problem_segments'] = problem_segments
+            if not problem_sections.empty:
+                print(f"Identified {len(problem_sections)} position problem sections")
+                self.results['position_problem_sections'] = problem_sections
         
         # Store results for further processing
         self.results['depth_analysis_data'] = self.depth_analyzer.data
@@ -248,11 +248,11 @@ class CompleteAnalysisWorker(BaseAnalysisWorker):
             print(f"Depth anomalies report saved to: {anomaly_file}")
         
         # 4. Save Excel reports for position analysis
-        if 'position_problem_segments' in self.results:
-            position_problem_segments = self.results['position_problem_segments']
-            if not position_problem_segments.empty:
+        if 'position_problem_sections' in self.results:
+            position_problem_sections = self.results['position_problem_sections']
+            if not position_problem_sections.empty:
                 pos_sections_file = os.path.join(self.output_dir, "position_problem_sections_report.xlsx")
-                position_problem_segments.to_excel(pos_sections_file, index=False)
+                position_problem_sections.to_excel(pos_sections_file, index=False)
                 print(f"Position problem sections report saved to: {pos_sections_file}")
         
         # 5. Extract and save position anomalies if they exist

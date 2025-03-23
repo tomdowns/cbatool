@@ -70,7 +70,7 @@ def test_position_report():
     position_results = {
         'analysis_complete': True,
         'position_analysis': create_sample_position_data(),
-        'problem_segments': create_sample_position_problem_segments(),
+        'problem_sections': create_sample_position_problem_sections(),
         'summary': {
             'total_points': 4235,
             'kp_range': (0.0, 4.235),
@@ -152,9 +152,9 @@ def test_combined_report():
     }
     
     # Add position problem segments separately to avoid confusion with depth problem sections
-    position_problem_segments = create_sample_position_problem_segments()
-    if not position_problem_segments.empty:
-        combined_results['position_analysis']['problem_segments'] = position_problem_segments
+    position_problem_sections = create_sample_position_problem_sections()
+    if not position_problem_sections.empty:
+        combined_results['position_analysis']['problem_sections'] = position_problem_sections
     
     # Create the report generator
     report_config = {
@@ -245,7 +245,7 @@ def create_sample_position_data(num_points=100):
         'Is_KP_Reversal': np.random.choice([False, True], num_points, p=[0.95, 0.05])
     })
 
-def create_sample_position_problem_segments():
+def create_sample_position_problem_sections():
     """Create minimal sample problem segments."""
     return pd.DataFrame([
         {
