@@ -9,7 +9,11 @@ module.exports = {
     'scope-enum': [
       2,
       'always',
+<<<<<<< Updated upstream
       ['analyzer', 'visualizer', 'ui', 'utils', 'config', 'report', 'core', 'data', 'docs', 'testing', 'worker',]
+=======
+      ['analyzer', 'visualizer', 'ui', 'utils', 'config', 'report', 'core', 'data', 'docs','parking-doc', 'test', 'worker',]
+>>>>>>> Stashed changes
     ],
     'scope-empty': [2, 'never'],
     'subject-case': [2, 'never', ['start-case', 'pascal-case']],
