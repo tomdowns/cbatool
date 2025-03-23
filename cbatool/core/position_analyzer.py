@@ -107,7 +107,24 @@ class PositionAnalyzer(BaseAnalyzer):
                 logger.warning(f"Northing column '{northing_column}' not found in data")
             
         return True
-
+    
+    def analyze_position_data(self, kp_jump_threshold: float = 0.1, 
+                        kp_reversal_threshold: float = 0.0001) -> bool:
+        """
+        Perform analysis on position data to detect anomalies and assess quality.
+        
+        Args:
+            kp_jump_threshold: Threshold for detecting jumps in KP values.
+            kp_reversal_threshold: Threshold for detecting reversals in KP values.
+            
+        Returns:
+            bool: True if analysis was successful, False otherwise.
+        """
+        return self.analyze_data(
+            kp_jump_threshold=kp_jump_threshold, 
+            kp_reversal_threshold=kp_reversal_threshold
+        )
+    
     def analyze_data(self, kp_jump_threshold: float = 0.1, 
                    kp_reversal_threshold: float = 0.0001, **kwargs) -> bool:
         """

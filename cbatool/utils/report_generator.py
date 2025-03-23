@@ -1032,115 +1032,115 @@ class ReportGenerator:
 				cell.alignment = Alignment(wrap_text=True)
 	
 	# Targeted fix for the create_comprehensive_report method
-def create_comprehensive_report(self, 
-							   analyzer_results: Dict[str, Any], 
-							   visualization_path: Optional[str] = None) -> Dict[str, str]:
-	"""
-	Create a comprehensive report from analyzer results.
-	
-	Args:
-		analyzer_results: Dictionary containing analyzer results or an Analyzer instance
-		visualization_path: Optional path to visualization file
-	
-	Returns:
-		Dictionary of generated report paths
-	"""
-	# Import the report utility functions
-	from ..utils.report_utils import (
-		validate_standardized_results,
-		extract_problem_sections,
-		extract_anomalies,
-		extract_recommendations,
-		create_compliance_metrics_dataframe
-	)
-	
-	# Step 1: Get standardized results
-	standardized_data = None
-	
-	# Check if we're dealing with an analyzer object with the new API
-	if hasattr(analyzer_results, 'get_standardized_results') and callable(getattr(analyzer_results, 'get_standardized_results')):
-		logger.info("Using get_standardized_results method from analyzer")
-		standardized_data = analyzer_results.get_standardized_results()
-	else:
-		# Determine if it's already standardized
-		if isinstance(analyzer_results, dict) and 'analysis_type' in analyzer_results:
-			logger.info("Using provided data as standardized results")
-			standardized_data = analyzer_results
+	def create_comprehensive_report(self, 
+								analyzer_results: Dict[str, Any], 
+								visualization_path: Optional[str] = None) -> Dict[str, str]:
+		"""
+		Create a comprehensive report from analyzer results.
+		
+		Args:
+			analyzer_results: Dictionary containing analyzer results or an Analyzer instance
+			visualization_path: Optional path to visualization file
+		
+		Returns:
+			Dictionary of generated report paths
+		"""
+		# Import the report utility functions
+		from ..utils.report_utils import (
+			validate_standardized_results,
+			extract_problem_sections,
+			extract_anomalies,
+			extract_recommendations,
+			create_compliance_metrics_dataframe
+		)
+		
+		# Step 1: Get standardized results
+		standardized_data = None
+		
+		# Check if we're dealing with an analyzer object with the new API
+		if hasattr(analyzer_results, 'get_standardized_results') and callable(getattr(analyzer_results, 'get_standardized_results')):
+			logger.info("Using get_standardized_results method from analyzer")
+			standardized_data = analyzer_results.get_standardized_results()
 		else:
-			# Use the old standardization method
-			analysis_type = 'combined'
-			if isinstance(analyzer_results, dict):
-				if 'depth_analysis' in analyzer_results and 'position_analysis' not in analyzer_results:
-					analysis_type = 'depth'
-				elif 'position_analysis' in analyzer_results and 'depth_analysis' not in analyzer_results:
-					analysis_type = 'position'
-					
-			logger.info(f"Standardizing analyzer results for {analysis_type} analysis")
-			standardized_data = self._standardize_analysis_results(analyzer_results, analysis_type)
-	
-	# Step 2: Validate standardized results
-	if not validate_standardized_results(standardized_data):
-		logger.error("Invalid standardized data structure")
-		return {}
-	
-	# Step 3: Check visualization path
-	if visualization_path and not os.path.exists(visualization_path):
-		logger.warning(f"Visualization file not found: {visualization_path}")
-		visualization_path = None
-	
-	# Step 4: Get analysis type for consistent filenames
-	analysis_type = standardized_data.get('analysis_type', 'combined')
-	
-	# Step 5: Create individual Excel reports based on extracted data
-	report_files = {}
-	
-	# Process problem sections
-	problem_sections_df = extract_problem_sections(standardized_data)
-	if problem_sections_df is not None and not problem_sections_df.empty:
-		problem_sections_path = os.path.join(self.output_directory, f"{analysis_type}_problem_sections.xlsx")
-		problem_sections_df.to_excel(problem_sections_path, index=False)
-		report_files[f'{analysis_type.capitalize()} Problem Sections'] = problem_sections_path
-		logger.info(f"Created problem sections report: {problem_sections_path}")
-	
-	# Process anomalies
-	anomalies_df = extract_anomalies(standardized_data)
-	if anomalies_df is not None and not anomalies_df.empty:
-		anomalies_path = os.path.join(self.output_directory, f"{analysis_type}_anomalies.xlsx")
-		anomalies_df.to_excel(anomalies_path, index=False)
-		report_files[f'{analysis_type.capitalize()} Anomalies'] = anomalies_path
-		logger.info(f"Created anomalies report: {anomalies_path}")
-	
-	# Process recommendations
-	recommendations_df = extract_recommendations(standardized_data)
-	if recommendations_df is not None and not recommendations_df.empty:
-		recommendations_path = os.path.join(self.output_directory, "recommendations.xlsx")
-		recommendations_df.to_excel(recommendations_path, index=False)
-		report_files['Recommendations'] = recommendations_path
-		logger.info(f"Created recommendations report: {recommendations_path}")
-	
-	# Process compliance metrics
-	compliance_df = create_compliance_metrics_dataframe(standardized_data)
-	if compliance_df is not None and not compliance_df.empty:
-		compliance_path = os.path.join(self.output_directory, "compliance_metrics.xlsx")
-		compliance_df.to_excel(compliance_path, index=False)
-		report_files['Compliance Metrics'] = compliance_path
-		logger.info(f"Created compliance metrics report: {compliance_path}")
-	
-	# Step 6: Generate consolidated Excel report
-	excel_report = self.consolidate_excel_reports(report_files, f"{analysis_type}_analysis_report.xlsx")
-	
-	# Step 7: Generate PDF summary
-	pdf_report = self.generate_pdf_summary(
-		standardized_data, 
-		visualization_path,
-		f"{analysis_type}_analysis_summary.pdf"
-	)
-	
-	# Return all generated reports
-	return {
-		'excel_report': excel_report,
-		'pdf_report': pdf_report,
-		'visualization': visualization_path,
-		'individual_reports': report_files
-	}
+			# Determine if it's already standardized
+			if isinstance(analyzer_results, dict) and 'analysis_type' in analyzer_results:
+				logger.info("Using provided data as standardized results")
+				standardized_data = analyzer_results
+			else:
+				# Use the old standardization method
+				analysis_type = 'combined'
+				if isinstance(analyzer_results, dict):
+					if 'depth_analysis' in analyzer_results and 'position_analysis' not in analyzer_results:
+						analysis_type = 'depth'
+					elif 'position_analysis' in analyzer_results and 'depth_analysis' not in analyzer_results:
+						analysis_type = 'position'
+						
+				logger.info(f"Standardizing analyzer results for {analysis_type} analysis")
+				standardized_data = self._standardize_analysis_results(analyzer_results, analysis_type)
+		
+		# Step 2: Validate standardized results
+		if not validate_standardized_results(standardized_data):
+			logger.error("Invalid standardized data structure")
+			return {}
+		
+		# Step 3: Check visualization path
+		if visualization_path and not os.path.exists(visualization_path):
+			logger.warning(f"Visualization file not found: {visualization_path}")
+			visualization_path = None
+		
+		# Step 4: Get analysis type for consistent filenames
+		analysis_type = standardized_data.get('analysis_type', 'combined')
+		
+		# Step 5: Create individual Excel reports based on extracted data
+		report_files = {}
+		
+		# Process problem sections
+		problem_sections_df = extract_problem_sections(standardized_data)
+		if problem_sections_df is not None and not problem_sections_df.empty:
+			problem_sections_path = os.path.join(self.output_directory, f"{analysis_type}_problem_sections.xlsx")
+			problem_sections_df.to_excel(problem_sections_path, index=False)
+			report_files[f'{analysis_type.capitalize()} Problem Sections'] = problem_sections_path
+			logger.info(f"Created problem sections report: {problem_sections_path}")
+		
+		# Process anomalies
+		anomalies_df = extract_anomalies(standardized_data)
+		if anomalies_df is not None and not anomalies_df.empty:
+			anomalies_path = os.path.join(self.output_directory, f"{analysis_type}_anomalies.xlsx")
+			anomalies_df.to_excel(anomalies_path, index=False)
+			report_files[f'{analysis_type.capitalize()} Anomalies'] = anomalies_path
+			logger.info(f"Created anomalies report: {anomalies_path}")
+		
+		# Process recommendations
+		recommendations_df = extract_recommendations(standardized_data)
+		if recommendations_df is not None and not recommendations_df.empty:
+			recommendations_path = os.path.join(self.output_directory, "recommendations.xlsx")
+			recommendations_df.to_excel(recommendations_path, index=False)
+			report_files['Recommendations'] = recommendations_path
+			logger.info(f"Created recommendations report: {recommendations_path}")
+		
+		# Process compliance metrics
+		compliance_df = create_compliance_metrics_dataframe(standardized_data)
+		if compliance_df is not None and not compliance_df.empty:
+			compliance_path = os.path.join(self.output_directory, "compliance_metrics.xlsx")
+			compliance_df.to_excel(compliance_path, index=False)
+			report_files['Compliance Metrics'] = compliance_path
+			logger.info(f"Created compliance metrics report: {compliance_path}")
+		
+		# Step 6: Generate consolidated Excel report
+		excel_report = self.consolidate_excel_reports(report_files, f"{analysis_type}_analysis_report.xlsx")
+		
+		# Step 7: Generate PDF summary
+		pdf_report = self.generate_pdf_summary(
+			standardized_data, 
+			visualization_path,
+			f"{analysis_type}_analysis_summary.pdf"
+		)
+		
+		# Return all generated reports
+		return {
+			'excel_report': excel_report,
+			'pdf_report': pdf_report,
+			'visualization': visualization_path,
+			'individual_reports': report_files
+		}
 	

@@ -123,7 +123,7 @@ class PositionAnalysisWorker(BaseAnalysisWorker):
         kp_jump_threshold = self.params.get('kp_jump_threshold', 0.1)
         kp_reversal_threshold = self.params.get('kp_reversal_threshold', 0.0001)
         
-        # Run analysis
+        # Use analyze_position_data method
         success = self.position_analyzer.analyze_position_data(
             kp_jump_threshold=kp_jump_threshold,
             kp_reversal_threshold=kp_reversal_threshold

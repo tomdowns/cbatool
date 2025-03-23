@@ -9,6 +9,7 @@ __author__ = 'Your Name'
 try:
     from .core.data_loader import DataLoader
     from .core.depth_analyzer import DepthAnalyzer
+    from .core.base_analyzer import BaseAnalyzer
     from .core.position_analyzer import PositionAnalyzer
     from .core.visualizer import Visualizer
 except ImportError as e:
