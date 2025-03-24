@@ -36,6 +36,7 @@ from ..utils.config_manager import (
 	get_available_configurations,
 	DEFAULT_CONFIG
 )
+from ..utils.cable_registry import CableRegistry
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ class CableAnalysisTool:
 		self.northing_column = StringVar()
 		self.sheet_name = StringVar(value="0")  # Default to first sheet
 		self.ignore_anomalies = BooleanVar(value=False)
+		self.cable_id = StringVar()  # Added for cable selection
 	
 	def _create_menu(self):
 		"""Create application menu bar."""
@@ -248,9 +250,18 @@ class CableAnalysisTool:
 		self.sheet_menu = ttk.Combobox(input_frame, textvariable=self.sheet_name, state="readonly", width=15)
 		self.sheet_menu.grid(row=2, column=1, sticky="w", pady=5)
 
+		# Cable selector section
+		self.cable_frame = CableRegistry.create_cable_selector(
+			input_frame, 
+			"Cable ID:", 
+			on_select=self._on_cable_selected,
+			config=self.current_config
+		)
+		self.cable_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=5)
+
 		# Analysis Parameters Section
 		analysis_params = CollapsibleFrame(input_frame, title="Analysis Parameters", expanded=True)
-		analysis_params.grid(row=3, column=0, columnspan=3, sticky="ew", pady=5)
+		analysis_params.grid(row=4, column=0, columnspan=3, sticky="ew", pady=5)
 
 		# Create frames for each parameter group
 		depth_frame = ttk.Frame(analysis_params.container)
@@ -502,7 +513,7 @@ class CableAnalysisTool:
 		Returns:
 			dict: Current configuration dictionary.
 		"""
-		return {
+		config = {
 			"configName": self.current_config.get("configName", "My Configuration"),
 			"description": self.current_config.get("description", ""),
 			"version": "1.0",
@@ -526,6 +537,15 @@ class CableAnalysisTool:
 				"includeAnomalies": True
 			}
 		}
+		
+		# Add cable registry information if available
+		if hasattr(self, 'cable_frame') and hasattr(self.cable_frame, 'registry'):
+			# Export cable registry to config format
+			cable_config = self.cable_frame.registry.export_to_config()
+			if cable_config and 'cableIdentifiers' in cable_config:
+				config['cableIdentifiers'] = cable_config['cableIdentifiers']
+				
+		return config
 
 	def _apply_configuration(self, config):
 		"""
@@ -545,6 +565,22 @@ class CableAnalysisTool:
 		
 		# Apply visualization settings if needed
 		# ...
+		
+		# Update cable selector with new configuration (if it exists)
+		if hasattr(self, 'cable_frame') and hasattr(self.cable_frame, 'registry'):
+			# Initialize from config if cable identifiers are provided
+			if 'cableIdentifiers' in config:
+				new_registry = CableRegistry(config)
+				self.cable_frame.registry = new_registry
+				
+				# Update the combobox values
+				cable_combo_values = new_registry.get_cable_ids()
+				
+				# Find the combobox in the frame's children
+				for child in self.cable_frame.winfo_children():
+					if isinstance(child, ttk.Combobox):
+						child['values'] = cable_combo_values
+						break
 		
 		# Note: We don't update column selections here because they depend on the loaded data
 	
@@ -855,7 +891,8 @@ class CableAnalysisTool:
 			'target_depth': self.target_depth.get(),
 			'max_depth': self.max_depth.get(),
 			'ignore_anomalies': self.ignore_anomalies.get(),
-			'sheet_name': self.sheet_name.get()
+			'sheet_name': self.sheet_name.get(),
+			'cable_id': self.cable_id.get() if self.cable_id.get() else None
 		}
 		
 		# Create the worker
@@ -1070,7 +1107,8 @@ class CableAnalysisTool:
 			'lon_column': lon_column,
 			'easting_column': easting_column,
 			'northing_column': northing_column,
-			'sheet_name': self.sheet_name.get()
+			'sheet_name': self.sheet_name.get(),
+			'cable_id': self.cable_id.get() if self.cable_id.get() else None
 		}
 		
 		# Create the worker
@@ -1130,7 +1168,8 @@ class CableAnalysisTool:
 			'ignore_anomalies': self.ignore_anomalies.get(),
 			'sheet_name': self.sheet_name.get(),
 			'kp_jump_threshold': 0.1,  # Could be made configurable
-			'kp_reversal_threshold': 0.0001  # Could be made configurable
+			'kp_reversal_threshold': 0.0001,  # Could be made configurable
+			'cable_id': self.cable_id.get() if self.cable_id.get() else None
 		}
 		
 		# Create the worker
@@ -1408,6 +1447,31 @@ class CableAnalysisTool:
 			print(traceback.format_exc())
 			messagebox.showerror("Position Analysis Error", f"An error occurred: {str(e)}")
 			self.set_status("Position analysis failed")
+	
+	def _on_cable_selected(self, cable_id):
+		"""
+		Callback for when a cable is selected in the dropdown.
+		
+		Args:
+			cable_id: The selected cable ID
+		"""
+		self.cable_id.set(cable_id)  # Store the selected cable ID for use in analysis
+		self.set_status(f"Selected cable: {cable_id}")
+		print(f"Selected cable: {cable_id}")
+		
+		# If the cable registry is available, get the cable type and status
+		if hasattr(self, 'cable_frame') and hasattr(self.cable_frame, 'registry'):
+			registry = self.cable_frame.registry
+			
+			# Get all cables matching this ID
+			cables = registry.cables[registry.cables['cable_id'] == cable_id]
+			
+			if not cables.empty:
+				cable_type = cables.iloc[0].get('type', '')
+				cable_status = cables.iloc[0].get('status', '')
+				print(f"Cable Type: {cable_type}, Status: {cable_status}")
+				
+				# This information could be included in reports and visualizations
 	
 	def _view_results(self):
 		"""
