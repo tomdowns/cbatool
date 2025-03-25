@@ -10,7 +10,6 @@ import sys
 import logging
 import threading
 import platform
-import pandas as pd
 from tkinter import (
 	Tk, Frame, Label, Entry, Button, StringVar, DoubleVar, Text, Scrollbar,
 	OptionMenu, filedialog, messagebox, simpledialog, ttk, Menu, BooleanVar,Toplevel
@@ -29,8 +28,7 @@ from ..ui.widgets import(
 	CreateToolTip,
 	ConsoleWidget,
 	ScrollableFrame,
-	StatusBar,
-	TabContainer
+	StatusBar
 )
 from ..utils.config_manager import (
 	load_configuration,
@@ -233,261 +231,163 @@ class CableAnalysisTool:
 		main_frame = ttk.Frame(self.root, padding="20 20 20 20")
 		main_frame.pack(fill="both", expand=True)
 		
-		# Create tab container
-		self.tab_container = TabContainer(main_frame)
-		self.tab_container.pack(fill="both", expand=True)
-		
-		# Create configuration tab
-		config_tab = self.tab_container.add_tab("config", "Configuration")
-		self._create_config_tab_content(config_tab)
-		
-		# Create analysis tab
-		analysis_tab = self.tab_container.add_tab("analysis", "Analysis")
-		self._create_analysis_tab_content(analysis_tab)
-		
-		# Create results tab
-		results_tab = self.tab_container.add_tab("results", "Results")
-		self._create_results_tab_content(results_tab)
-		
-		# Create console output at the bottom
-		console_frame = ttk.LabelFrame(main_frame, text="Analysis Log", padding="10 10 10 10")
-		console_frame.pack(fill="both", expand=True, pady=(10, 10))
-		
-		# Create ConsoleWidget
-		self.console = ConsoleWidget(console_frame)
-		self.console.pack(fill="both", expand=True)
-		
-		# Set up console redirector
-		self.redirector = self.console.create_redirector()
-	
-	def _create_config_tab_content(self, tab):
-		"""Create contents for the Configuration tab."""
-		# Create configuration frame with padding
-		config_frame = ttk.Frame(tab, padding="10")
-		config_frame.pack(fill="both", expand=True)
-		
-		# File selection section
-		file_frame = ttk.LabelFrame(config_frame, text="Data Selection", padding="10")
-		file_frame.pack(fill="x", pady=(0, 10))
-		
+		# Input section - file selection, parameters
+		input_frame = ttk.LabelFrame(main_frame, text="Configuration", padding="10 10 10 10")
+		input_frame.pack(fill="x", pady=(0, 10))
+
 		# File selection
-		ttk.Label(file_frame, text="Data File:").grid(row=0, column=0, sticky="w", pady=5)
-		ttk.Entry(file_frame, textvariable=self.file_path, width=50).grid(row=0, column=1, sticky="ew", pady=5)
-		ttk.Button(file_frame, text="Browse...", command=self._browse_file).grid(row=0, column=2, padx=5, pady=5)
-		
+		ttk.Label(input_frame, text="Data File:").grid(row=0, column=0, sticky="w", pady=5)
+		ttk.Entry(input_frame, textvariable=self.file_path, width=50).grid(row=0, column=1, sticky="ew", pady=5)
+		ttk.Button(input_frame, text="Browse...", command=self._browse_file).grid(row=0, column=2, padx=5, pady=5)
+
 		# Output directory
-		ttk.Label(file_frame, text="Output Directory:").grid(row=1, column=0, sticky="w", pady=5)
-		ttk.Entry(file_frame, textvariable=self.output_dir, width=50).grid(row=1, column=1, sticky="ew", pady=5)
-		ttk.Button(file_frame, text="Browse...", command=self._browse_output_dir).grid(row=1, column=2, padx=5, pady=5)
-		
+		ttk.Label(input_frame, text="Output Directory:").grid(row=1, column=0, sticky="w", pady=5)
+		ttk.Entry(input_frame, textvariable=self.output_dir, width=50).grid(row=1, column=1, sticky="ew", pady=5)
+		ttk.Button(input_frame, text="Browse...", command=self._browse_output_dir).grid(row=1, column=2, padx=5, pady=5)
+
 		# Sheet selector
-		ttk.Label(file_frame, text="Sheet Name:").grid(row=2, column=0, sticky="w", pady=5)
-		self.sheet_menu = ttk.Combobox(file_frame, textvariable=self.sheet_name, state="readonly", width=15)
+		ttk.Label(input_frame, text="Sheet Name:").grid(row=2, column=0, sticky="w", pady=5)
+		self.sheet_menu = ttk.Combobox(input_frame, textvariable=self.sheet_name, state="readonly", width=15)
 		self.sheet_menu.grid(row=2, column=1, sticky="w", pady=5)
-		
-		# Configure grid column weights
-		file_frame.columnconfigure(1, weight=1)
-		
+
 		# Cable selector section
-		cable_frame = ttk.LabelFrame(config_frame, text="Cable Selection", padding="10")
-		cable_frame.pack(fill="x", pady=(0, 10))
-		
 		self.cable_frame = CableRegistry.create_cable_selector(
-			cable_frame, 
+			input_frame, 
 			"Cable ID:", 
 			on_select=self._on_cable_selected,
 			config=self.current_config
 		)
-		self.cable_frame.pack(fill="x", pady=5)
-		
+		self.cable_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=5)
+
 		# Analysis Parameters Section
-		params_frame = ttk.LabelFrame(config_frame, text="Analysis Parameters", padding="10")
-		params_frame.pack(fill="both", expand=True, pady=(0, 10))
-		
-		# Create a notebook for parameter groups
-		params_notebook = ttk.Notebook(params_frame)
-		params_notebook.pack(fill="both", expand=True, pady=5)
-		
+		analysis_params = CollapsibleFrame(input_frame, title="Analysis Parameters", expanded=True)
+		analysis_params.grid(row=4, column=0, columnspan=3, sticky="ew", pady=5)
+
+		# Create frames for each parameter group
+		depth_frame = ttk.Frame(analysis_params.container)
+		position_frame = ttk.Frame(analysis_params.container)
+
 		# Depth Analysis Parameters
-		depth_frame = ttk.Frame(params_notebook, padding="10")
-		params_notebook.add(depth_frame, text="Depth Analysis")
-		
-		ttk.Label(depth_frame, text="Target Depth (m):").grid(row=0, column=0, sticky="w", pady=2)
-		target_entry = ttk.Entry(depth_frame, textvariable=self.target_depth, width=10)
+		depth_label = ttk.Label(depth_frame, text="Depth Analysis", font=("", 9, "bold"))
+		depth_label.pack(anchor="w", pady=(0, 5))
+
+		depth_params = ttk.Frame(depth_frame)
+		depth_params.pack(fill="x", padx=10)
+
+		ttk.Label(depth_params, text="Target Depth (m):").grid(row=0, column=0, sticky="w", pady=2)
+		target_entry = ttk.Entry(depth_params, textvariable=self.target_depth, width=10)
 		target_entry.grid(row=0, column=1, sticky="w", pady=2)
 		CreateToolTip(target_entry, "Target burial depth for the cable")
-		
-		ttk.Label(depth_frame, text="Max Trenching Depth (m):").grid(row=1, column=0, sticky="w", pady=2)
-		max_entry = ttk.Entry(depth_frame, textvariable=self.max_depth, width=10)
+
+		ttk.Label(depth_params, text="Max Trenching Depth (m):").grid(row=1, column=0, sticky="w", pady=2)
+		max_entry = ttk.Entry(depth_params, textvariable=self.max_depth, width=10)
 		max_entry.grid(row=1, column=1, sticky="w", pady=2)
 		CreateToolTip(max_entry, "Maximum physically possible trenching depth")
-		
-		ttk.Label(depth_frame, text="Depth Column:").grid(row=2, column=0, sticky="w", pady=2)
-		self.depth_menu = ttk.Combobox(depth_frame, textvariable=self.depth_column, state="readonly", width=15)
+
+		ttk.Label(depth_params, text="Depth Column:").grid(row=2, column=0, sticky="w", pady=2)
+		self.depth_menu = ttk.Combobox(depth_params, textvariable=self.depth_column, state="readonly", width=15)
 		self.depth_menu.grid(row=2, column=1, sticky="w", pady=2)
 		CreateToolTip(self.depth_menu, "Column containing depth measurements")
-		
-		ignore_check = ttk.Checkbutton(depth_frame, text="Ignore Anomalies", variable=self.ignore_anomalies)
+
+		ignore_check = ttk.Checkbutton(depth_params, text="Ignore Anomalies", variable=self.ignore_anomalies)
 		ignore_check.grid(row=3, column=0, columnspan=2, sticky="w", pady=2)
 		CreateToolTip(ignore_check, "Exclude anomalous points from compliance analysis")
-		
+
 		# Position Analysis Parameters
-		position_frame = ttk.Frame(params_notebook, padding="10")
-		params_notebook.add(position_frame, text="Position Analysis")
-		
-		ttk.Label(position_frame, text="KP Column:").grid(row=0, column=0, sticky="w", pady=2)
-		self.kp_menu = ttk.Combobox(position_frame, textvariable=self.kp_column, state="readonly", width=15)
+		position_label = ttk.Label(position_frame, text="Position Analysis", font=("", 9, "bold"))
+		position_label.pack(anchor="w", pady=(10, 5))
+
+		position_params = ttk.Frame(position_frame)
+		position_params.pack(fill="x", padx=10)
+
+		ttk.Label(position_params, text="KP Column:").grid(row=0, column=0, sticky="w", pady=2)
+		self.kp_menu = ttk.Combobox(position_params, textvariable=self.kp_column, state="readonly", width=15)
 		self.kp_menu.grid(row=0, column=1, sticky="w", pady=2)
 		CreateToolTip(self.kp_menu, "Column containing KP (kilometer point) values")
-		
-		ttk.Label(position_frame, text="Position Column:").grid(row=1, column=0, sticky="w", pady=2)
-		self.position_menu = ttk.Combobox(position_frame, textvariable=self.position_column, state="readonly", width=15)
+
+		ttk.Label(position_params, text="Position Column:").grid(row=1, column=0, sticky="w", pady=2)
+		self.position_menu = ttk.Combobox(position_params, textvariable=self.position_column, state="readonly", width=15)
 		self.position_menu.grid(row=1, column=1, sticky="w", pady=2)
 		CreateToolTip(self.position_menu, "Column containing position values")
-		
-		ttk.Label(position_frame, text="Latitude Column:").grid(row=3, column=0, sticky="w", pady=2)
-		self.lat_menu = ttk.Combobox(position_frame, textvariable=self.lat_column, state="readonly", width=15)
+
+		ttk.Label(position_params, text="Latitude Column:").grid(row=3, column=0, sticky="w", pady=2)
+		self.lat_menu = ttk.Combobox(position_params, textvariable=self.lat_column, state="readonly", width=15)
 		self.lat_menu.grid(row=3, column=1, sticky="w", pady=2)
 		CreateToolTip(self.lat_menu, "Column containing latitude values")
-		
-		ttk.Label(position_frame, text="Longitude Column:").grid(row=4, column=0, sticky="w", pady=2)
-		self.lon_menu = ttk.Combobox(position_frame, textvariable=self.lon_column, state="readonly", width=15)
+
+		ttk.Label(position_params, text="Longitude Column:").grid(row=4, column=0, sticky="w", pady=2)
+		self.lon_menu = ttk.Combobox(position_params, textvariable=self.lon_column, state="readonly", width=15)
 		self.lon_menu.grid(row=4, column=1, sticky="w", pady=2)
 		CreateToolTip(self.lon_menu, "Column containing longitude values")
-		
+
 		# Easting/Northing fields
-		ttk.Label(position_frame, text="Easting Column:").grid(row=5, column=0, sticky="w", pady=2)
-		self.easting_menu = ttk.Combobox(position_frame, textvariable=self.easting_column, state="readonly", width=15)
+		ttk.Label(position_params, text="Easting Column:").grid(row=5, column=0, sticky="w", pady=2)
+		self.easting_menu = ttk.Combobox(position_params, textvariable=self.easting_column, state="readonly", width=15)
 		self.easting_menu.grid(row=5, column=1, sticky="w", pady=2)
 		CreateToolTip(self.easting_menu, "Column containing easting values")
-		
-		ttk.Label(position_frame, text="Northing Column:").grid(row=6, column=0, sticky="w", pady=2)
-		self.northing_menu = ttk.Combobox(position_frame, textvariable=self.northing_column, state="readonly", width=15)
+
+		ttk.Label(position_params, text="Northing Column:").grid(row=6, column=0, sticky="w", pady=2)
+		self.northing_menu = ttk.Combobox(position_params, textvariable=self.northing_column, state="readonly", width=15)
 		self.northing_menu.grid(row=6, column=1, sticky="w", pady=2)
 		CreateToolTip(self.northing_menu, "Column containing northing values")
-		
-		# WGS84 coordinate system note
-		ttk.Label(position_frame, text="Note: Position analysis uses WGS84 coordinate system", 
+  
+  		# WGS84 coordinate system note
+		ttk.Label(position_params, text="Note: Position analysis uses WGS84 coordinate system", 
 				foreground="blue", font=("", 8, "italic")).grid(
 				row=7, column=0, columnspan=2, sticky="w", pady=(0, 5))
 
-	def _create_analysis_tab_content(self, tab):
-		"""Create contents for the Analysis tab."""
-		# Create main frame for analysis tab
-		analysis_frame = ttk.Frame(tab, padding="10")
-		analysis_frame.pack(fill="both", expand=True)
-		
-		# Analysis type selection
-		analysis_type_frame = ttk.LabelFrame(analysis_frame, text="Analysis Type", padding="10")
-		analysis_type_frame.pack(fill="x", pady=(0, 10))
-		
-		# Create a grid of analysis buttons
-		depth_button = ttk.Button(
-			analysis_type_frame, 
+		# Add the parameter frames to the collapsible section
+		analysis_params.add(depth_frame)
+		analysis_params.add(position_frame)
+
+		# Configure grid column weights
+		input_frame.columnconfigure(1, weight=1)
+  
+		# Button frame at the bottom
+		button_frame = ttk.Frame(main_frame)
+		button_frame.pack(fill="x", pady=10)
+
+		# Analysis buttons
+		ttk.Button(
+						button_frame,
+						text="Run Complete Analysis",
+						command=self.run_complete_analysis
+					).pack(side="left", padx=(0, 10))
+  
+		ttk.Button(
+			button_frame, 
 			text="Run Depth Analysis",
 			command=self.run_analysis
-		)
-		depth_button.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-		CreateToolTip(depth_button, "Analyze cable burial depth data only")
-		
-		position_button = ttk.Button(
-			analysis_type_frame,
+		).pack(side="left", padx=(0, 10))
+
+		ttk.Button(
+			button_frame,
 			text="Run Position Analysis",
 			command=self.run_position_analysis
-		)
-		position_button.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-		CreateToolTip(position_button, "Analyze cable position data only")
-		
-		complete_button = ttk.Button(
-			analysis_type_frame,
-			text="Run Complete Analysis",
-			command=self.run_complete_analysis
-		)
-		complete_button.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-		CreateToolTip(complete_button, "Perform comprehensive analysis of depth and position data")
-		
-		# Configure the grid
-		for i in range(3):
-			analysis_type_frame.columnconfigure(i, weight=1)
-		
-		# Analysis progress section
-		progress_frame = ttk.LabelFrame(analysis_frame, text="Analysis Progress", padding="10")
-		progress_frame.pack(fill="both", expand=True, pady=(0, 10))
-		
-		# Progress indicator
-		self.progress_bar = ttk.Progressbar(progress_frame, mode="indeterminate", length=100)
-		self.progress_bar.pack(fill="x", pady=10)
-		
-		# Progress status
-		self.progress_label = ttk.Label(progress_frame, text="Ready to start analysis")
-		self.progress_label.pack(pady=5)
-		
-		# Analysis summary placeholder
-		summary_frame = ttk.LabelFrame(analysis_frame, text="Analysis Summary", padding="10")
-		summary_frame.pack(fill="both", expand=True)
-		
-		self.summary_text = tk.Text(summary_frame, height=10, wrap="word", state="disabled")
-		summary_scroll = ttk.Scrollbar(summary_frame, command=self.summary_text.yview)
-		self.summary_text.configure(yscrollcommand=summary_scroll.set)
-		
-		self.summary_text.pack(side="left", fill="both", expand=True)
-		summary_scroll.pack(side="right", fill="y")
+		).pack(side="left", padx=(0, 10))
 
-	def _create_results_tab_content(self, tab):
-		"""Create contents for the Results tab."""
-		# Create main frame for results tab
-		results_frame = ttk.Frame(tab, padding="10")
-		results_frame.pack(fill="both", expand=True)
-		
-		# Results navigation
-		nav_frame = ttk.Frame(results_frame)
-		nav_frame.pack(fill="x", pady=(0, 10))
-		
 		ttk.Button(
-			nav_frame,
-			text="View Depth Results",
-			command=lambda: self._view_results(analysis_type="depth")
-		).pack(side="left", padx=5)
-		
+			button_frame,
+			text="View Results",
+			command=self._view_results
+		).pack(side="left", padx=(0, 10))
+
 		ttk.Button(
-			nav_frame,
-			text="View Position Results",
-			command=lambda: self._view_results(analysis_type="position")
-		).pack(side="left", padx=5)
-		
-		ttk.Button(
-			nav_frame,
-			text="Refresh Results",
-			command=self._refresh_results
-		).pack(side="right", padx=5)
-		
-		# Results visualization area
-		viz_frame = ttk.LabelFrame(results_frame, text="Visualization", padding="10")
-		viz_frame.pack(fill="both", expand=True, pady=(0, 10))
-		
-		# Placeholder for visualization
-		self.viz_placeholder = ttk.Label(
-			viz_frame, 
-			text="No visualization available.\nRun an analysis first to see results.",
-			anchor="center"
-		)
-		self.viz_placeholder.pack(fill="both", expand=True)
-		
-		# Create frame for visualization that will be populated later
-		self.viz_container = ttk.Frame(viz_frame)
-		# Don't pack this yet - it will replace the placeholder when visualization is available
-		
-		# Results data area
-		data_frame = ttk.LabelFrame(results_frame, text="Data Summary", padding="10")
-		data_frame.pack(fill="x", pady=(0, 10), expand=False)
-		
-		# Placeholder for results data
-		self.results_text = tk.Text(data_frame, height=5, wrap="word", state="disabled")
-		data_scroll = ttk.Scrollbar(data_frame, command=self.results_text.yview)
-		self.results_text.configure(yscrollcommand=data_scroll.set)
-		
-		self.results_text.pack(side="left", fill="both", expand=True)
-		data_scroll.pack(side="right", fill="y")
+			button_frame,
+			text="Exit",
+			command=self.root.destroy
+		).pack(side="right")
+  
+		# Console output
+		console_frame = ttk.LabelFrame(main_frame, text="Analysis Log", padding="10 10 10 10")
+		console_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+		# Create ConsoleWidget
+		self.console = ConsoleWidget(console_frame)
+		self.console.pack(fill="both", expand=True)
+
+		# Set up console redirector
+		self.redirector = self.console.create_redirector()
 	
 	def _create_status_bar(self):
 		"""Create status bar at the bottom of the window."""
@@ -1573,47 +1473,9 @@ class CableAnalysisTool:
 				
 				# This information could be included in reports and visualizations
 	
-	def _refresh_results(self):
-		"""Refresh the results visualization and data."""
-		# Check if results are available
-		if hasattr(self, 'visualizer') and hasattr(self.visualizer, 'figure'):
-			# Show the visualization container and hide placeholder
-			self.viz_placeholder.pack_forget()
-			self.viz_container.pack(fill="both", expand=True)
-			
-			# Update the visualization if needed
-			# This would typically embed a visualization like a matplotlib figure
-			
-			# Update the results text
-			if hasattr(self, 'depth_analyzer') and hasattr(self.depth_analyzer, 'analysis_results'):
-				self._update_results_text(self.depth_analyzer.analysis_results)
-		else:
-			# Show placeholder
-			self.viz_container.pack_forget()
-			self.viz_placeholder.pack(fill="both", expand=True)
-
-	def _update_results_text(self, results):
-		"""Update the results text widget with analysis results."""
-		if not hasattr(self, 'results_text'):
-			return
-			
-		self.results_text.config(state="normal")
-		self.results_text.delete(1.0, tk.END)
-		
-		# Format and display results summary
-		if isinstance(results, dict):
-			for key, value in results.items():
-				if not isinstance(value, (pd.DataFrame, dict, list)):
-					self.results_text.insert(tk.END, f"{key}: {value}\n")
-		
-		self.results_text.config(state="disabled")
- 
-	def _view_results(self, analysis_type="depth"):
+	def _view_results(self):
 		"""
 		View analysis results with support for both depth and position analyses.
-		
-		Args:
-			analysis_type: Type of analysis results to view ("depth" or "position")
 		"""
 		# Check if any analysis has been run
 		depth_results = hasattr(self.depth_analyzer, 'analysis_results') and self.depth_analyzer.analysis_results
