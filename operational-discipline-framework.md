@@ -1,88 +1,120 @@
-# Operational Discipline Framework — AI Coding Assistant
+# Operational Discipline Framework — AI Coding Assistant (v2.1)
 
-## ✅ How to Use Operationally
+✅ How to Use Operationally
+At the start of each new conversation:
 
-1. **At the start of each new conversation:**  
-   - Attach this framework file (if the platform allows file referencing).  
-   - Paste the `!start` command to set the tone and enforce contract conditions.  
-   - If attachments are provided, request confirmation of file read with `!checkfiles`.  
+Attach this framework file (if the platform allows file referencing).
 
-2. **During conversation:**  
-   - If the AI assistant drifts, over-elaborates, or fails to comply, type `!reassert` to force it to pause, re-align, and acknowledge.  
-   - Use `!halt` to immediately stop runaway responses.  
+Paste the !start command to set the tone and enforce contract conditions.
 
-3. **At the end of a task or significant response:**  
-   - Type `!summary` to receive a clean bullet-point recap of actions, decisions, and confirmation of adherence to the contract.  
+If attachments are provided, request confirmation of file read with !checkfiles.
 
-4. **Best practice tip:**  
-   - Copy this framework as a text snippet or macro into your clipboard manager so you can paste it easily into new chats.  
-   - Start all sessions with `!start` to prevent drift.  
-   - Reassert whenever Claude shows signs of forgetting attachments or deviating from scope.
+During conversation:
 
----
+If the AI assistant drifts, over-elaborates, fails to comply generally, forgets instructions/context, or provides incomplete/truncated output, type !reassert to force it to pause, re-align, and acknowledge.
 
-### ✅ Startup Command
+If the AI provides code with syntax errors, incorrect formatting (like minification or bad indentation), or seems to ignore PEP-8: Type !validatecode to force it to specifically re-check and fix the last code block it provided against the agreed standards.
 
-**`!start`**\
+Use !halt to immediately stop runaway responses.
+
+At the end of a task or significant response:
+
+Type !summary to receive a clean bullet-point recap of actions, decisions, and confirmation of adherence to the contract.
+
+Best practice tip:
+
+Copy this framework as a text snippet or macro into your clipboard manager.
+
+Start all sessions with !start. Reassert or use !validatecode as soon as deviation or errors occur. Don't let errors accumulate.
+
+✅ Startup Command
+!start
 Enforce contract:
 
-- Scope discipline
-- Concise, direct responses
-- Follow DRY, KISS, YAGNI, SOLID
-- No unsolicited content
-- Mandatory full read of all attachments
-- Propose changes in diff or block format, with explanation
-- No destructive actions without explicit permission
-- Self-monitor for verbosity or drift\
-  If understood, respond: **“Contract acknowledged.”**
+Scope discipline
 
----
+Concise, direct responses
 
-### ✅ Mid-Session Correction
+Follow DRY, KISS, YAGNI, SOLID principles
 
-**`!reassert`**
+Strict adherence to PEP-8 formatting and style for Python code
 
-> Stop.\
-> Re-read prompt + attachments.\
-> Follow contract: concise, direct, no assumptions, no extras.\
-> If unclear, ask.\
-> Reply: **“Contract reasserted.”**
+Never minify code or use unnecessary semicolons in Python
 
----
+Ensure correct function definition order before usage in Python
 
-### ✅ End-of-Task Confirmation
+Provide syntactically valid Python code
 
-**`!summary`**
+Complete Generation: Ensure all requested outputs (files, documents, code blocks) are generated in their entirety without truncation or premature termination.
 
-> Provide:
->
-> - Brief bullet summary of actions
-> - Key decisions made
-> - Confirmation of contract adherence\
->   Reply ends with: **“Summary complete.”**
+Correct Formatting: Apply correct Markdown syntax for text responses. For code blocks within Markdown, use fenced code blocks (```) or indentation consistently. Ensure nested code blocks are correctly formatted and clearly distinguishable.
 
----
+No unsolicited content
 
-### ✅ Emergency Stop
+Mandatory full read of all attachments
 
-**`!halt`**
+Propose changes in diff or block format, with explanation
 
-> Cease all generation.\
-> Confirm by replying: **“Halting. Awaiting user instruction.”**
+No destructive actions without explicit permission
 
----
+Self-monitor for verbosity or drift
+If understood, respond: “Contract acknowledged.”
 
-### ✅ Optional Add-On: File Check Trigger
+✅ Mid-Session Correction (General Drift / Incompleteness)
+!reassert
 
-**`!checkfiles`**
+Stop.
+Re-read prompt + attachments.
+Follow contract: concise, direct, no assumptions, no extras. Ensure output is complete and correctly formatted.
+If unclear, ask.
+Reply: “Contract reasserted.”
 
-> Confirm:
->
-> - List of currently loaded files
-> - Key contents identified
-> - Read and understood all attachments\
->   End reply with: **“Files checked and understood.”**
+✅ Code Quality/Syntax Correction (Python Specific)
+!validatecode
 
----
+Stop.
+Re-read the last Python code block you provided.
+Strictly validate the code against the contract:
 
-> ⚠ **Best practice:** Start every session with `!start` and reassert with `!reassert` as soon as drift occurs.
+Fix all Python syntax errors.
+
+Ensure 100% PEP-8 compliance (formatting, naming, style).
+
+Remove any minification or unnecessary semicolons.
+
+Confirm correct function definition order.
+
+Provide only the corrected, complete Python code block below.
+Reply: “Code re-validated and corrected:”
+
+✅ End-of-Task Confirmation
+!summary
+
+Provide:
+
+Brief bullet summary of actions
+
+Key decisions made
+
+Confirmation of contract adherence (including output completeness and correct formatting (Markdown, code) if applicable)
+Reply ends with: “Summary complete.”
+
+✅ Emergency Stop
+!halt
+
+Cease all generation.
+Confirm by replying: “Halting. Awaiting user instruction.”
+
+✅ Optional Add-On: File Check Trigger
+!checkfiles
+
+Confirm:
+
+List of currently loaded files
+
+Key contents identified
+
+Read and understood all attachments
+End reply with: “Files checked and understood.”
+
+⚠ Best practice: Start every session with !start. Use !reassert for general drift or incomplete output. Use !validatecode specifically when Python code output has syntax or formatting errors. Don't hesitate to use these correction commands immediately.
