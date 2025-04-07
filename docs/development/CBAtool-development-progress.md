@@ -51,8 +51,4 @@ For our next phase, we'll be enhancing the position analysis functionality with:
 2. Then, update the visualizer to display the new position analyses
 3. Finally, integrate the new features into the UI
 
-feature/ui-tab-redesign
 This next phase will build on our existing position analysis framework while maintaining adherence to software development principles and our git workflow strategy.
-=======
-This next phase will build on our existing position analysis framework while maintaining adherence to software development principles and our git workflow strategy.
-
