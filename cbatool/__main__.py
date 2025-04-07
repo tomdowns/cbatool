@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import platform
+import sv_ttk
 from typing import Optional
 import traceback
 
@@ -62,7 +63,9 @@ def main() -> None:
         from tkinter import Tk
         
         # Create application window
+       
         root = Tk()
+        sv_ttk.set_theme("dark")
         app = CableAnalysisTool(root)
         
         # Start main event loop

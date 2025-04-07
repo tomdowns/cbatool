@@ -475,7 +475,7 @@ class CreateToolTip:
 		frame = ttk.Frame(self.tooltip, borderwidth=1, relief="solid")
 		frame.pack(fill="both", expand=True)
 		
-		label = ttk.Label(frame, text=self.text, wraplength=250, padding=(5, 2), background="#ffffcc")
+		label = ttk.Label(frame, text=self.text, wraplength=250, padding=(5, 2))
 		label.pack()
 
 	def leave(self, event=None):
