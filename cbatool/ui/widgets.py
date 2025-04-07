@@ -333,6 +333,123 @@ class CollapsibleFrame(ttk.Frame):
 		widget.pack(fill="x", expand=True, pady=2)
 
 
+class TabContainer(ttk.Notebook):
+	"""
+	A container widget that manages multiple tabs with a consistent interface.
+	
+	Attributes:
+		tabs (Dict[str, ttk.Frame]): Dictionary mapping tab names to content frames.
+		current_tab (str): Name of the currently selected tab.
+	"""
+	
+	def __init__(self, parent, **kwargs):
+		"""
+		Initialize the TabContainer.
+		
+		Args:
+			parent: The parent widget.
+			**kwargs: Additional keyword arguments for ttk.Notebook.
+		"""
+		super().__init__(parent, **kwargs)
+		self.tabs = {}
+		self.current_tab = None
+		
+		# Bind tab change event
+		self.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+		
+	def add_tab(self, name, title, padding="15 15 15 15"):
+		"""
+		Add a new tab to the container.
+		
+		Args:
+			name: Internal name for the tab.
+			title: Display title for the tab.
+			padding: Padding for the tab frame (defaults to "15 15 15 15").
+			
+		Returns:
+			The frame for the tab content.
+		"""
+		frame = ttk.Frame(self, padding=padding)
+		self.add(frame, text=title)
+		self.tabs[name] = frame
+		
+		# If this is the first tab, set it as current
+		if self.current_tab is None:
+			self.current_tab = name
+		
+		return frame
+		
+	def select_tab(self, name):
+		"""
+		Select a tab by name.
+		
+		Args:
+			name: Name of the tab to select.
+		"""
+		if name in self.tabs:
+			self.select(self.index(self.tabs[name]))
+			self.current_tab = name
+		
+	def disable_tab(self, name):
+		"""
+		Disable a tab by name.
+		
+		Args:
+			name: Name of the tab to disable.
+		"""
+		if name in self.tabs:
+			index = self.index(self.tabs[name])
+			self.tab(index, state="disabled")
+		
+	def enable_tab(self, name):
+		"""
+		Enable a tab by name.
+		
+		Args:
+			name: Name of the tab to enable.
+		"""
+		if name in self.tabs:
+			index = self.index(self.tabs[name])
+			self.tab(index, state="normal")
+		
+	def get_current_tab(self):
+		"""
+		Get the name of the currently selected tab.
+		
+		Returns:
+			str: Name of the current tab.
+		"""
+		return self.current_tab
+		
+	def get_tab_frame(self, name):
+		"""
+		Get the frame for a specific tab.
+		
+		Args:
+			name: Name of the tab.
+		
+		Returns:
+			ttk.Frame: The tab's frame, or None if not found.
+		"""
+		return self.tabs.get(name, None)
+		
+	def _on_tab_changed(self, event):
+		"""
+		Handle tab change events.
+		
+		Args:
+			event: Event details.
+		"""
+		# Get the selected tab index
+		selected_index = self.index(self.select())
+		
+		# Find the corresponding tab name
+		for name, frame in self.tabs.items():
+			if self.index(frame) == selected_index:
+				self.current_tab = name
+				break
+
+
 class CreateToolTip:
 	"""
 	Create a tooltip for a given widget.
