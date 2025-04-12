@@ -471,7 +471,7 @@ class CableAnalysisTool:
 
             # Load data preview to get columns (might be slow for huge files)
             # Consider loading only headers or first few rows if performance is an issue
-            data_preview = self.data_loader.load_data(sheet_name=self.sheet_name.get(), rows_to_load=5)
+            data_preview = self.data_loader.load_data(sheet_name=self.sheet_name.get(), nrows=5)
             if data_preview is None:
                 # Schedule messagebox on main thread
                 self.root.after(0, lambda: messagebox.showerror("File Error", "Could not load preview data from the selected file/sheet."))
